@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Poppins, Geist_Mono } from "next/font/google";
+import { Navigation } from "@/components/layout/Navigation";
+import { Footer } from "@/components/layout/Footer";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,9 +47,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${poppins.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${poppins.variable} ${geistMono.variable} from-primary-50 to-secondary-50 min-h-screen bg-gradient-to-br via-white antialiased`}
       >
-        {children}
+        <div className="flex min-h-screen flex-col">
+          <Navigation />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </div>
+        <Toaster />
       </body>
     </html>
   );
