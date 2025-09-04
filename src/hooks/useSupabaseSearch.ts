@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo } from "react";
-import type { Partner, SearchParams, PartnerType } from "@/types";
+import type { Partner, SearchParams, PartnerType, PriceRange } from "@/types";
 
 interface SearchSuggestion {
   text: string;
@@ -242,7 +242,7 @@ export function useSupabaseSearch(): UseSupabaseSearchReturn {
  */
 
 export async function searchPartnersInSupabase(
-  _params: SearchParams
+  _: SearchParams
 ): Promise<Partner[]> {
   // Real implementation would use MCP calls like:
 
@@ -267,7 +267,7 @@ export async function searchPartnersInSupabase(
 }
 
 export async function getSuggestionsFromSupabase(
-  _query: string
+  _: string
 ): Promise<SearchSuggestion[]> {
   // Real implementation would use:
 

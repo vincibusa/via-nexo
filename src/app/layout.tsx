@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
@@ -29,7 +30,9 @@ export default function RootLayout({
         )}
       >
         <Header />
-        <main className="-mt-20">{children}</main>
+        <Suspense fallback={<div>Loading...</div>}>
+          <main className="-mt-20">{children}</main>
+        </Suspense>
       </body>
     </html>
   );

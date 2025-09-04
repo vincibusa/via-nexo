@@ -34,7 +34,7 @@ export function useSearch(): UseSearchReturn {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [currentParams, setCurrentParams] = useState<SearchParams | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-
+  const hasMore = results.length < total;
   const search = useCallback(async (params: SearchParams) => {
     if (!params.query || params.query.length < SEARCH_CONFIG.minQueryLength) {
       setResults([]);
@@ -124,7 +124,7 @@ export function useSearch(): UseSearchReturn {
   }, [currentParams, currentPage, status, hasMore]);
 
   // Computed properties
-  const hasMore = results.length < total;
+
   const isLoading = status === "loading";
 
   return useMemo(

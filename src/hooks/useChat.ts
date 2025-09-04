@@ -35,9 +35,7 @@ export function useChat(): UseChatReturn {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [_currentSession, setCurrentSession] = useState<ChatSession | null>(
-    null
-  );
+  const [_, setCurrentSession] = useState<ChatSession | null>(null);
 
   const lastUserMessageRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -175,7 +173,7 @@ export function useChat(): UseChatReturn {
     clearChat();
   }, [clearChat]);
 
-  const loadSession = useCallback(async (_sessionId: string) => {
+  const loadSession = useCallback(async (_: string) => {
     setStatus("loading");
 
     try {

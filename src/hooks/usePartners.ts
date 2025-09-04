@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import type { Partner, PartnerType, Status, ApiResponse } from "@/types";
+import type { Partner, PartnerType, Status } from "@/types";
 
 interface UsePartnersReturn {
   // State

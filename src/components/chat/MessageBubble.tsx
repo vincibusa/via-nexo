@@ -17,7 +17,6 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
     : "bg-neutral-800 rounded-tl-none";
 
   const alignmentClasses = isUser ? "justify-end" : "items-start";
-  const textAlignmentClasses = isUser ? "items-end" : "items-start";
 
   return (
     <div className={`flex items-start gap-3 ${alignmentClasses}`}>
