@@ -3,8 +3,8 @@
  * Manages search state and API calls for partner discovery
  */
 
-import { useState, useCallback, useEffect } from "react";
-import type { SearchParams, SearchResult, Partner, Status } from "@/types";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import type { SearchParams, Partner, Status } from "@/types";
 import { useDebounce } from "./useDebounce";
 import { SEARCH_CONFIG } from "@/constants";
 
@@ -121,49 +121,64 @@ export function useSearch(): UseSearchReturn {
       setError(err instanceof Error ? err.message : "Failed to load more");
       setStatus("error");
     }
-  }, [currentParams, currentPage, status]);
+  }, [currentParams, currentPage, status, hasMore]);
 
   // Computed properties
   const hasMore = results.length < total;
   const isLoading = status === "loading";
 
-  return {
-    // State
-    results,
-    total,
-    status,
-    error,
-    suggestions,
+  return useMemo(
+    () => ({
+      // State
+      results,
+      total,
+      status,
+      error,
+      suggestions,
 
-    // Actions
-    search,
-    clearResults,
-    loadMore,
+      // Actions
+      search,
+      clearResults,
+      loadMore,
 
-    // Computed
-    hasMore,
-    isLoading,
-  };
+      // Computed
+      hasMore,
+      isLoading,
+    }),
+    [
+      results,
+      total,
+      status,
+      error,
+      suggestions,
+      search,
+      clearResults,
+      loadMore,
+      hasMore,
+      isLoading,
+    ]
+  );
 }
 
 // Hook for debounced search - useful for search-as-you-type
 export function useDebouncedSearch(
   delay: number = SEARCH_CONFIG.searchDebounceMs
 ) {
-  const search = useSearch();
+  const searchHook = useSearch();
+  const { search, clearResults } = searchHook;
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, delay);
 
   useEffect(() => {
     if (debouncedQuery) {
-      search.search({ query: debouncedQuery });
+      search({ query: debouncedQuery });
     } else {
-      search.clearResults();
+      clearResults();
     }
-  }, [debouncedQuery, search]);
+  }, [debouncedQuery, search, clearResults]);
 
   return {
-    ...search,
+    ...searchHook,
     query,
     setQuery,
   };

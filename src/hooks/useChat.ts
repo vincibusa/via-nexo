@@ -16,7 +16,9 @@ interface UseChatReturn {
 
   // Actions
   sendMessage: (content: string) => Promise<void>;
+  addMessage: (message: ChatMessage) => void;
   clearChat: () => void;
+  clearMessages: () => void;
   retryLastMessage: () => Promise<void>;
 
   // Session management
@@ -33,7 +35,7 @@ export function useChat(): UseChatReturn {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [currentSession, setCurrentSession] = useState<ChatSession | null>(
+  const [_currentSession, setCurrentSession] = useState<ChatSession | null>(
     null
   );
 
@@ -123,6 +125,14 @@ export function useChat(): UseChatReturn {
     [messages.length, status]
   );
 
+  const addMessage = useCallback((message: ChatMessage) => {
+    setMessages(prev => [...prev, message]);
+  }, []);
+
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
+
   const clearChat = useCallback(() => {
     // Cancel any ongoing request
     if (abortControllerRef.current) {
@@ -165,7 +175,7 @@ export function useChat(): UseChatReturn {
     clearChat();
   }, [clearChat]);
 
-  const loadSession = useCallback(async (sessionId: string) => {
+  const loadSession = useCallback(async (_sessionId: string) => {
     setStatus("loading");
 
     try {
@@ -193,7 +203,9 @@ export function useChat(): UseChatReturn {
 
     // Actions
     sendMessage,
+    addMessage,
     clearChat,
+    clearMessages,
     retryLastMessage,
 
     // Session management

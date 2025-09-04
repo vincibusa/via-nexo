@@ -134,9 +134,11 @@
 
   /* Font Families */
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, sans-serif;
   --font-display:
-    "Poppins", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    "Plus Jakarta Sans", "Poppins", "Inter", -apple-system, BlinkMacSystemFont,
+    sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
 
   /* Font Sizes - Mobile First */
@@ -648,9 +650,15 @@ body {
  */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .glass-effect {
+    @apply rounded-2xl border border-[var(--border-glass)] bg-[var(--glass-light)] shadow-xl backdrop-blur-lg transition-all duration-300;
   }
 }

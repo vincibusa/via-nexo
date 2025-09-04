@@ -1,42 +1,18 @@
 import type { Metadata } from "next";
-import { Inter, Poppins, Geist_Mono } from "next/font/google";
-import { Navigation } from "@/components/layout/Navigation";
-import { Footer } from "@/components/layout/Footer";
-import { Toaster } from "@/components/ui/sonner";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { cn } from "@/lib/utils";
+import { Header } from "@/components/page/Header";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-poppins",
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: "Via Nexo - Discover Italy",
-  description:
-    "Discover Italy's hidden gems with AI-powered travel recommendations. Find the best hotels, restaurants, tours and experiences.",
-  keywords:
-    "Italy travel, tourism, hotels, restaurants, tours, AI recommendations",
-  authors: [{ name: "Via Nexo Team" }],
-};
-
-export const viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
+  title: "TravelApp - Esplora e Scopri",
+  description: "Find Your Next Adventure",
 };
 
 export default function RootLayout({
@@ -45,16 +21,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="it" data-theme="dark">
       <body
-        className={`${inter.variable} ${poppins.variable} ${geistMono.variable} from-primary-50 to-secondary-50 min-h-screen bg-gradient-to-br via-white antialiased`}
+        className={cn(
+          "bg-background min-h-screen font-sans antialiased",
+          jakarta.variable
+        )}
       >
-        <div className="flex min-h-screen flex-col">
-          <Navigation />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
-        <Toaster />
+        <Header />
+        <main>{children}</main>
       </body>
     </html>
   );

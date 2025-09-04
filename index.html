@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="it"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TravelApp - Esplora e Scopri</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+      :root {
+        --primary-color: #13a4ec;
+        --secondary-color: #0a6bb3;
+        --background-color: #111827;--text-primary: #e2e8f0;
+        --text-secondary: #a0aec0;
+        --accent-color: #38b2ac;
+        --glass-light: rgba(255, 255, 255, 0.05);--glass-dark: rgba(0, 0, 0, 0.2);
+        --border-glass: rgba(255, 255, 255, 0.1);}
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background-color: var(--background-color);
+        color: var(--text-primary);
+      }
+      .glass-effect {
+        @apply bg-[var(--glass-light)] backdrop-blur-lg border border-[var(--border-glass)] rounded-2xl shadow-xl transition-all duration-300;
+      }
+    </style>
+</head>
+<body class="bg-[var(--background-color)] text-[var(--text-primary)]">
+<div class="relative min-h-screen w-full overflow-x-hidden">
+<div class="absolute inset-0 bg-cover bg-center bg-no-repeat" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBE2MR2KP05PulQIy4zzTqHqShks-IAejZoRTgl7D78PIMrevkdAlHlA1fj6u9Olca0ueZ8o--23-66xDljdgT1DUqKrmrKqxIWF34KzSggDr8XCokW2pR3DvaKyQaiyPfMahtT4BdHKMUdFjjbzJOXc_F-GQDNNK3eT509gsKBsgT-6mQ_2PYVlIJCQ00W20u6tl7kgnOrz-LAA2y0XN7Ay8LGBLJ0BGJh6iPJE12aIkJ5rGAh6cnxaZspH5GS1baM6jc2OG8ewclr")'></div>
+<div class="absolute inset-0 bg-gradient-to-b from-[var(--background-color)] via-[var(--background-color)]/80 to-[var(--background-color)]"></div>
+<div class="relative z-10 flex h-full grow flex-col">
+<header class="sticky top-0 z-50 bg-[var(--background-color)]/50 backdrop-blur-md">
+<nav class="container mx-auto flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-8">
+<a class="flex items-center gap-3 text-white" href="#">
+<svg class="h-8 w-8 text-[var(--primary-color)]" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.48-1.19 4.7-3.1 6.14z"></path>
+</svg>
+<h1 class="text-2xl font-bold">TravelAI</h1>
+</a>
+<div class="hidden items-center gap-8 md:flex">
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Explore</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Trips</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Community</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="rounded-full p-2 text-[var(--text-secondary)] hover:bg-[var(--glass-light)] hover:text-[var(--text-primary)] transition-colors">
+<svg fill="currentColor" height="24" viewBox="0 0 256 256" width="24" xmlns="http://www.w3.org/2000/svg">
+<path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.25,62.38-13.8,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216Z"></path>
+</svg>
+</button>
+<div class="h-10 w-10 rounded-full bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBSDadV-FeA2f-DQZLW7TYz-rfu2diYCKw1QU4O0FVAeW4ViW8OfcALFpE_e3Hzo7nsW3sVw8csOHG2s5x84kLL6cIgKpPsImk3jEeqc2-Xh-xLWbMWkF2VlwKYzlKvIPeGVl1f8EYj0I87kwsXiCwIBqGwGa1aqMIKxFm5EPJh2vvKDy9usjCTaPJYoZWs0pLMfRKpaHE2PtF8WXM9p_QEBoHtI2Sw5A1RaQ2dEPkeov3fQflIOrAhpxXcG228z7-_KL8CdwcPhP6h");'></div>
+</div>
+</nav>
+</header>
+<main class="container mx-auto flex flex-1 flex-col items-center justify-center px-6 py-16 text-center md:py-24">
+<h2 class="text-4xl font-extrabold text-white md:text-6xl">Find Your Next Adventure</h2>
+<p class="mt-4 max-w-2xl text-lg text-[var(--text-secondary)]">
+            Describe your perfect trip, and let our AI create a personalized itinerary just for you. Or use our classic search to explore destinations.
+          </p>
+<div class="mt-10 w-full max-w-2xl">
+<div class="glass-effect p-2">
+<div class="relative flex w-full flex-col gap-4 md:flex-row">
+<div class="relative flex-grow">
+<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+<svg class="text-[var(--text-secondary)]" fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path>
+</svg>
+</div>
+<input class="w-full rounded-lg border-none bg-transparent py-3 pl-12 pr-4 text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-opacity-50" placeholder="Search for a city, hotel, or attraction" type="text"/>
+</div>
+<button class="flex items-center justify-center gap-2 rounded-lg bg-[var(--primary-color)] px-6 py-3 font-semibold text-white transition-colors duration-300 ease-in-out hover:bg-[var(--secondary-color)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-opacity-50">
+<svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20" xmlns="http://www.w3.org/2000/svg">
+<path d="M213.66,101.66,134.34,22.34a8,8,0,0,0-11.32,0L42.34,101.66a8,8,0,0,0,0,11.32l80.68,80.68a8,8,0,0,0,11.32,0l79.32-79.32a8,8,0,0,0,0-11.32ZM128,184,61.37,117.37,128,50.69,194.63,117.37ZM152,88a24,24,0,1,1-34.12-34.12A24,24,0,0,1,152,88Z"></path>
+</svg>
+<span>AI Search</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<section class="container mx-auto w-full px-6 pb-24">
+<h3 class="text-2xl font-bold text-white">Popular Destinations</h3>
+<div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+<div class="group relative overflow-hidden rounded-2xl">
+<img alt="Rome" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDs62ZROx-Q_6tFC9-6_HSRhsSvd4No4nItWqeooVj1lCYMjWXhmPyWTObx8sHR0sf0GBt_kqvsXYZZRztJqYk3eqtZLnThO_q-OE6uGh1eNS5qGfOGYum5ZpinbhtLhFZFVHUVgPNKxki4gxF2jchf8G4CUIUSh4W8BtjKloQ9xClx6D_XkCELy_c5wgY7s4dTPQ077iLcIpWnmLJ-utvLOU_Db6CTC4u-y9MHIfBKQCrV5XnuN4zU5qh8zvkOC7gOxuQOpSr7GeAa"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6">
+<h4 class="text-xl font-bold text-white">Rome</h4>
+<p class="text-sm text-[var(--text-secondary)]">Italy</p>
+</div>
+</div>
+<div class="group relative overflow-hidden rounded-2xl">
+<img alt="Florence" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkesGRKmtc5ssl32CXSRLZD-SLaAqmwI08WKpcGhmwpyG4nZpYWfm5StQNBH-yoMj3XOyFbY6YKFj95zmlBfIT1GUazryt6jLVOYzQw4jQbuQZwxo_emoR_o3myjS-IZXw2I1CPllUtopdIoOp9jkeRSDDdTqR-RE3qomPDOTmkGtkarX99rg7envSW4TwYcQp0mf-giBo-0TeeWFS_Xs8q8dV3qmnkSskNlQyeTylVi9MJqkMZzI_7LMbiDssFtaRhpgOxscej-mq"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6">
+<h4 class="text-xl font-bold text-white">Florence</h4>
+<p class="text-sm text-[var(--text-secondary)]">Italy</p>
+</div>
+</div>
+<div class="group relative overflow-hidden rounded-2xl">
+<img alt="Venice" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWa-yXB4BpDriKe74-8ghHjz0SN572ki6VJno1Ct9VxXM1jjZGhuiiRc2C3HicsjQdWaHf75PQ1N6aSaDIJ77oEt9camhtuOFaPckdOZRLEsoGhlOFaHae2RNlSyT66M6FhSzNAE6FY7YG0sLiNaWqlSIhEuWALJc_EOZFC8E4XRmyYDo5D1Nape4s1YgYM-J8ylbveEeAS2E_CxDAnO42uGBspJgXm8zkEj-ksApLqM9nGdnrkpHHVRK3gwyC1stuBIzz0FpILHwx"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6">
+<h4 class="text-xl font-bold text-white">Venice</h4>
+<p class="text-sm text-[var(--text-secondary)]">Italy</p>
+</div>
+</div>
+<div class="group relative overflow-hidden rounded-2xl">
+<img alt="Milan" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAnxgoWP5WCelln5torR11y1NCIGJVdj5kSc8SUbZN-j7NSK9pU7YxE4VrCWY-yOpPSb3_YH0MldOi-zdtjtzOd8N4Ab4al5A8ciVnBf9LYOBmUHEoI3Np4UalSUXIe6kFPnKcd3bGZ4SkcEu3zMU8qQFP8BgUQmi53meuyf722eJVR-xs9q0wqSEz8vTqg9YNThufIZFAIMIXJzso1qfJYMm-Xh0fv37fFW35lEEK9W1OXkyF5IP_pKkEY-sg2LZZFKYFtrs-uim19"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-6">
+<h4 class="text-xl font-bold text-white">Milan</h4>
+<p class="text-sm text-[var(--text-secondary)]">Italy</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</div>
+
+</body></html>
