@@ -30,7 +30,8 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 function getRateLimitKey(request: NextRequest): string {
   // Use IP address or user ID for rate limiting
   const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || request.ip || "unknown";
+  const realIp = request.headers.get("x-real-ip");
+  const ip = forwarded?.split(",")[0]?.trim() || realIp || "unknown";
   return `rate_limit:${ip}`;
 }
 
