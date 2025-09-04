@@ -47,3 +47,30 @@ export const AiSearchIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <path d="M213.66,101.66,134.34,22.34a8,8,0,0,0-11.32,0L42.34,101.66a8,8,0,0,0,0,11.32l80.68,80.68a8,8,0,0,0,11.32,0l79.32-79.32a8,8,0,0,0,0-11.32ZM128,184,61.37,117.37,128,50.69,194.63,117.37ZM152,88a24,24,0,1,1-34.12-34.12A24,24,0,0,1,152,88Z" />
   </svg>
 );
+
+export const ChatLogoIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    {...props}
+    fill="none"
+    viewBox="0 0 48 48"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M24 4C12.95 4 4 7.26 4 11.27C4 14.01 8.16 16.4 14.31 17.64C8.16 18.88 4 21.26 4 24C4 26.74 8.16 29.12 14.31 30.36C8.16 31.6 4 33.99 4 36.73C4 40.74 12.95 44 24 44C35.05 44 44 40.74 44 36.73C44 33.99 39.84 31.6 33.69 30.36C39.84 29.12 44 26.74 44 24C44 21.26 39.84 18.88 33.69 17.64C39.84 16.4 44 14.01 44 11.27C44 7.26 35.05 4 24 4Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+
+export const SendIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg
+    {...props}
+    fill="currentColor"
+    height="24"
+    viewBox="0 0 256 256"
+    width="24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,59.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"></path>
+  </svg>
+);
