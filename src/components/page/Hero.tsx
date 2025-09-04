@@ -4,7 +4,7 @@ import { AiSearchIcon, SearchIcon } from "./Icons";
 
 export const Hero = () => {
   return (
-    <div className="container mx-auto flex flex-1 flex-col items-center justify-center px-6 py-16 text-center md:py-24">
+    <div className="container mx-auto flex flex-1 flex-col items-center justify-center px-6 pt-32 pb-16 text-center md:pt-40 md:pb-24">
       <h2 className="text-4xl font-extrabold text-white md:text-6xl">
         Find Your Next Adventure
       </h2>

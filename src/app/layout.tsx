@@ -29,7 +29,7 @@ export default function RootLayout({
         )}
       >
         <Header />
-        <main>{children}</main>
+        <main className="-mt-20">{children}</main>
       </body>
     </html>
   );
