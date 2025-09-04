@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+.turbo
+.vercel
+*.config.js
+*.config.mjs
+*.config.ts
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+public/sw.js
+public/workbox-*
+.env*
+*.tsbuildinfo
