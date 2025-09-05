@@ -1,4 +1,5 @@
-import { vectorSearch, searchPartners, Partner } from "./supabase-server";
+import { vectorSearch, searchPartners } from "./supabase-server";
+import { PartnerData } from "@/types";
 // import { generateEmbeddings } from './openai'
 import { searchWithAgent, chatWithAgent } from "./agents";
 import {
@@ -32,7 +33,7 @@ const DEFAULT_RAG_CONFIG: RAGConfig = {
 // RAG Query Interface
 export interface RAGQuery {
   query: string;
-  partnerType?: Partner["type"];
+  partnerType?: PartnerData["type"];
   location?: string;
   context?: {
     userPreferences?: {
@@ -50,7 +51,7 @@ export interface RAGResponse {
   success: boolean;
   query: string;
   response: string;
-  sources: Partner[];
+  sources: PartnerData[];
   metadata: {
     retrievalTime: number;
     generationTime: number;
@@ -103,17 +104,24 @@ export class RAGPipeline {
         `RAG Pipeline: Generated response in ${generationTime}ms (total: ${totalTime}ms)`
       );
 
+      // Combine retrieved sources with agent-found partners
+      const allPartners = [...sources, ...response.partners];
+      const uniquePartners = allPartners.filter(
+        (partner, index, array) =>
+          array.findIndex(p => p.id === partner.id) === index
+      );
+
       return {
         success: true,
         query: ragQuery.query,
         response: response.message,
-        sources,
+        sources: uniquePartners,
         metadata: {
           retrievalTime,
           generationTime,
           totalTime,
           cachedResults: response.cached,
-          sourceCount: sources.length,
+          sourceCount: uniquePartners.length,
           config,
         },
       };
@@ -145,7 +153,7 @@ export class RAGPipeline {
   private async retrieve(
     ragQuery: RAGQuery,
     config: RAGConfig
-  ): Promise<Partner[]> {
+  ): Promise<PartnerData[]> {
     const cacheKey = createCacheKey(
       "retrieve",
       hashString(ragQuery.query),
@@ -170,8 +178,8 @@ export class RAGPipeline {
   private async performRetrieval(
     ragQuery: RAGQuery,
     config: RAGConfig
-  ): Promise<Partner[]> {
-    const results = new Map<string, Partner>();
+  ): Promise<PartnerData[]> {
+    const results = new Map<string, PartnerData>();
 
     try {
       // Strategy 1: Vector search with semantic similarity
@@ -242,9 +250,9 @@ export class RAGPipeline {
    */
   private async generate(
     ragQuery: RAGQuery,
-    sources: Partner[],
+    sources: PartnerData[],
     config: RAGConfig
-  ): Promise<{ message: string; cached: boolean }> {
+  ): Promise<{ message: string; partners: PartnerData[]; cached: boolean }> {
     const cacheKey = createCacheKey(
       "generate",
       hashString(ragQuery.query),
@@ -258,7 +266,7 @@ export class RAGPipeline {
       const cached = agentCache.get<string>(cacheKey);
       if (cached) {
         console.log("RAG Generation: Using cached response");
-        return { message: cached, cached: true };
+        return { message: cached, partners: [], cached: true };
       }
     }
 
@@ -266,16 +274,20 @@ export class RAGPipeline {
     const response = await this.performGeneration(ragQuery, sources);
 
     if (config.useCache) {
-      agentCache.set(cacheKey, response, config.agentCacheTTL);
+      agentCache.set(cacheKey, response.message, config.agentCacheTTL);
     }
 
-    return { message: response, cached: false };
+    return {
+      message: response.message,
+      partners: response.partners || [],
+      cached: false,
+    };
   }
 
   private async performGeneration(
     ragQuery: RAGQuery,
-    sources: Partner[]
-  ): Promise<string> {
+    sources: PartnerData[]
+  ): Promise<{ message: string; partners?: PartnerData[] }> {
     // Prepare context from retrieved sources
     const context = this.prepareContext(sources);
 
@@ -296,7 +308,7 @@ export class RAGPipeline {
       });
 
       if (result.success) {
-        return result.message;
+        return { message: result.message, partners: result.partners };
       } else {
         throw new Error(result.error || "Chat agent failed");
       }
@@ -310,7 +322,7 @@ export class RAGPipeline {
     });
 
     if (result.success) {
-      return result.message;
+      return { message: result.message, partners: [] };
     } else {
       throw new Error(result.error || "Search agent failed");
     }
@@ -319,7 +331,7 @@ export class RAGPipeline {
   /**
    * Prepare context from retrieved partners for AI generation
    */
-  private prepareContext(sources: Partner[]): string {
+  private prepareContext(sources: PartnerData[]): string {
     if (sources.length === 0) {
       return "No relevant partners found.";
     }
@@ -375,7 +387,7 @@ export async function performRAGQuery(query: RAGQuery): Promise<RAGResponse> {
 
 export async function simpleRAGQuery(
   query: string,
-  partnerType?: Partner["type"],
+  partnerType?: PartnerData["type"],
   location?: string
 ): Promise<RAGResponse> {
   return ragPipeline.query({
