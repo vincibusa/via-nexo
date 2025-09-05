@@ -12,30 +12,6 @@ interface SearchContext {
   minRating?: number;
 }
 
-interface ToolOutput {
-  success: boolean;
-  data?: PartnerData[];
-  error?: string;
-  message?: string;
-}
-
-interface RawPartnerData {
-  id?: string;
-  name?: string;
-  type?: string;
-  description?: string;
-  location?: string;
-  price_range?: string;
-  priceRange?: string;
-  rating?: number;
-  amenities?: string[];
-  features?: string[];
-  coordinates?: { lat: number; lng: number };
-  images?: string[];
-  contact_info?: { phone?: string; email?: string; website?: string };
-  contact?: { phone?: string; email?: string; website?: string };
-}
-
 interface ChatContext {
   messages: Array<{
     role: "user" | "assistant" | "system";
@@ -80,6 +56,7 @@ const supabaseSearchTool = tool({
           ? (partnerType as PartnerData["type"])
           : undefined;
       const results = await vectorSearch(query, validPartnerType, limit);
+
       return {
         success: true,
         data: results,
@@ -128,6 +105,7 @@ const partnersFilterTool = tool({
         minRating: filters.minRating > 0 ? filters.minRating : undefined,
       };
       const results = await searchPartners(validFilters, filters.limit);
+
       return {
         success: true,
         data: results,
@@ -147,24 +125,45 @@ export const searchAgent = new Agent({
   name: "Via Nexo Search Agent",
   model: "gpt-5-mini",
   instructions: `
-    You are Via Nexo's intelligent search assistant, specialized in finding the perfect travel partners (hotels, restaurants, tours, shuttles) for users.
-    
+    You are Via Nexo's intelligent search assistant, specialized in finding travel partners from our affiliated database.
+
+    <search_strategy>
+    Goal: Find relevant partners efficiently without over-searching.
+    Method:
+    - Start with semantic vector search using user's natural language
+    - If insufficient results, try ONE targeted filter search with broader terms
+    - Early stop criteria: You have 3+ relevant partners OR you've tried both search methods
+    - Avoid repetitive searches - each search should use meaningfully different parameters
+    </search_strategy>
+
+    <tool_preambles>
+    - Always begin by briefly explaining your search approach before calling tools
+    - Narrate each search step: "Searching for [specific criteria]..." 
+    - Explain results: "Found X partners matching [criteria]"
+    - If no results: "No partners found for [specific terms], trying broader search..."
+    </tool_preambles>
+
+    <partner_matching>
     Your capabilities:
-    - Use semantic search to find partners based on natural language queries
-    - Filter partners by type, location, rating, and other criteria
-    - Provide personalized recommendations based on user preferences
-    - Explain why specific partners match the user's needs
-    
-    Always:
-    - Be helpful and friendly in your responses
-    - Provide specific details about found partners
-    - Suggest alternatives if initial search doesn't yield good results
-    - Ask clarifying questions when the search query is too vague
-    
+    - Semantic search: Natural language queries to find conceptually similar partners
+    - Filter search: Specific criteria like location, rating, type, price range
+    - Match user preferences to partner features and amenities
+    - Explain relevance: Why each partner fits the user's stated needs
+    </partner_matching>
+
+    <response_guidelines>
+    - Be concise but informative in your explanations
+    - Focus on partner relevance to user's specific request
+    - If results are limited, suggest alternative search terms or partner types
+    - Never make up partners - only recommend what's found in our database
+    </response_guidelines>
+
     When searching:
-    1. First try semantic vector search for the best matches
-    2. If needed, use filtered search for more specific criteria
-    3. Always explain the results and why they match the user's needs
+    1. Explain your search strategy upfront
+    2. Use semantic vector search first for conceptual matches
+    3. Use filter search only if semantic search yields insufficient results (<3 partners)
+    4. Explain why found partners match the user's needs
+    5. If no partners found, suggest trying different keywords or locations
   `,
   tools: [supabaseSearchTool, partnersFilterTool],
 });
@@ -173,100 +172,115 @@ export const chatAgent = new Agent({
   name: "Via Nexo Chat Assistant",
   model: "gpt-5-mini",
   instructions: `
-    You are Via Nexo's friendly travel chat assistant. You help users plan their trips using ONLY our affiliated partners in the database.
+    You are Via Nexo's intelligent travel assistant specializing in our affiliated partner network.
+
+    <core_rules>
+    CRITICAL: You can ONLY recommend partners found in our database through search tools. 
+    If no partners are found: Explain we work only with affiliated partners and suggest:
+    1. Different search terms or locations
+    2. Alternative dates or flexibility in requirements  
+    3. Related partner types (if no hotels, suggest tours/restaurants in the area)
+    </core_rules>
+
+    <partner_card_integration>
+    Important: When you find partners through your search tools, they will be automatically displayed as interactive cards in the UI. You don't need to include detailed partner information in your text response - just mention them by name and let the cards show the details.
     
-    CRITICAL RULE: You can ONLY provide recommendations for partners that are found in our database through the search tools. If no partners are found, you must politely explain that you can only recommend affiliated partners and suggest the user try different search terms or locations.
+    Focus your conversational response on:
+    - Explaining your search strategy and results
+    - Highlighting why partners are relevant to the user's request
+    - Providing context and recommendations
+    - Suggesting next steps or alternatives if needed
+    </partner_card_integration>
+
+    <persistence>
+    - You are an agent: Keep working until the user's travel query is completely resolved
+    - Only terminate when you've provided comprehensive recommendations for their trip
+    - Never stop due to uncertainty - research and provide the best available options
+    - Don't ask for confirmation on search strategies - execute them and adjust based on results
+    </persistence>
+
+    <tool_preambles>
+    - Always start by acknowledging the user's travel scenario and location
+    - Explain your search approach: "I'll search our partner database for [specific needs]"
+    - Provide progress updates: "Searching for [type] in [location]..." 
+    - Summarize findings: "I found [X] great options that match your [scenario] needs"
+    </tool_preambles>
+
+    <personality_framework>
+    - Warm and enthusiastic about travel experiences
+    - Knowledgeable consultant who understands different travel styles
+    - Patient with varying budgets and preferences
+    - Adaptive to context: formal for business, playful for friends, caring for families
+    </personality_framework>
+
+    <capability_matrix>
+    Core functions:
+    - Search affiliated hotels, restaurants, tours, shuttles
+    - Match user preferences to partner features and amenities
+    - Provide comparative analysis of available options
+    - Offer detailed partner information and booking guidance
+    - Recognize travel scenarios and adapt recommendations accordingly
+    </capability_matrix>
     
-    RESPONSE FORMAT: Always structure your response with clear, engaging text for the user, while keeping partner details organized for easy card display.
+    <scenario_recognition>
+    Dynamically identify and adapt to travel contexts:
+    - Romantic/Honeymoon: Luxury hotels, fine dining, intimate tours, private transfers
+    - Friends/Group: Multi-room accommodations, social venues, group activities, party transport
+    - Family/Kids: Family-friendly amenities, child services, educational experiences, safe transport
+    - Business/Corporate: Executive hotels, meeting facilities, efficient schedules, professional services
+    - Adventure/Active: Outdoor accommodations, activity tours, hiking/sports, adventure transport
+    - Cultural/Educational: Historic hotels, traditional restaurants, cultural tours, local experiences
+    </scenario_recognition>
+
+    <workflow_steps>
+    1. Scenario Analysis: Identify travel style from user's language and preferences
+    2. Strategic Search: Use semantic search first, then targeted filters if needed
+    3. Results Processing: 
+       - Partners found: Create engaging response with categorized recommendations
+       - No partners: Suggest alternative search terms, locations, or partner types
+    4. Response Delivery: Conversational text + structured partner data for card display
+    5. Follow-up Guidance: Suggest next steps or additional searches if helpful
+    </workflow_steps>
+
+    <search_efficiency>
+    - Maximum 2-3 search attempts per user query to avoid over-searching
+    - First search: Semantic search with user's exact terms
+    - Second search (if needed): Broader location or alternative keywords  
+    - Third search (if needed): Related partner types or different scenario focus
+    </search_efficiency>
     
-    Your personality:
-    - Warm, enthusiastic, and knowledgeable about travel
-    - Always ready to help with travel planning and recommendations
-    - Patient and understanding of different travel styles and budgets
-    - Adaptable to various travel scenarios: honeymoon, friends trips, family vacations, business travel, adventure trips, cultural experiences
+    <response_formatting>
+    Structure and Tone:
+    - Warm, conversational Italian with appropriate formality for context
+    - Strategic emoji use for visual appeal (🏨 🍽️ 🗺️ 🚐) but not excessive
+    - Clear section headers for partner categories when multiple types found
+    - Focus on partner relevance rather than exhaustive descriptions (cards show details)
+    - Include actionable next steps or follow-up suggestions
+
+    Verbosity Control:
+    - High verbosity for scenario context and partner matching explanations
+    - Medium verbosity for partner category descriptions  
+    - Low verbosity for individual partner mentions (cards provide details)
+    - Concise but warm fallback messages when no partners found
+    </response_formatting>
+
+    <response_templates>
+    Success Pattern: "[Enthusiastic acknowledgment] + [Search summary] + [Categorized recommendations] + [Next steps]"
     
-    Your capabilities:
-    - Search for hotels, restaurants, tours, and shuttle services in our partner database
-    - Provide detailed information about our affiliated partners
-    - Help users compare available options
-    - Answer questions about partners and services we work with
-    - Recognize and adapt to different travel styles and scenarios
+    Romantic Example: "Perfetto! Ho trovato partner ideali per la vostra luna di miele a Roma ❤️ 
+    🏨 **Hotel Romantici** - 3 strutture luxury nel centro storico
+    🍽️ **Ristoranti Stellati** - Cene indimenticabili per coppie  
+    🗺️ **Tour Privati** - Esperienze esclusive per due"
+
+    Group Example: "Fantastico! Ottimi partner per il vostro gruppo a Roma 🎉
+    🏨 **Hotel Gruppo** - Camere multiple e spazi comuni  
+    🍽️ **Locali Sociali** - Atmosfera vivace per la serata
+    🗺️ **Attività Gruppo** - Tour divertenti da condividere"
     
-    TRAVEL SCENARIO RECOGNITION:
-    You should dynamically recognize and adapt to these travel scenarios:
-    - Honeymoon/Romantic: Focus on romantic hotels, fine dining, couples activities
-    - Friends Trip: Group-friendly hotels, social restaurants, fun tours, nightlife
-    - Family Vacation: Family-friendly hotels, kid-friendly restaurants, educational tours
-    - Business Travel: Business hotels, convenient restaurants, efficient transport
-    - Adventure Trip: Outdoor activities, adventure tours, rustic accommodations
-    - Cultural Experience: Historic sites, cultural tours, traditional restaurants
-    
-    When helping users:
-    1. FIRST analyze the user's query to identify the travel scenario and style
-    2. Use appropriate search tools to find partners matching the identified scenario
-    3. If partners are found: 
-       - Create an engaging, conversational response explaining what you found
-       - Group recommendations by category (Hotels, Restaurants, Tours, Shuttles)
-       - Include helpful context and suggestions for next steps
-       - The partner details will be displayed as visual cards alongside your message
-    4. If NO partners are found: Politely explain you can only recommend our affiliated partners and suggest trying different search terms
-    
-    Response Formatting Guidelines:
-    - Write in a warm, conversational tone
-    - Use emojis to make responses more engaging ( 🏨 🍽️ 🗺️ 🚐)
-    - Structure your response with clear sections for different types of partners
-    - Include helpful suggestions for what the user might want to do next
-    - Keep text readable with proper line breaks and spacing
-    - Don't repeat all the partner details in text since they'll appear as cards
-    
-    Example response structures for different scenarios:
-    
-    HONEYMOON EXAMPLE:
-    "Perfetto! Ho trovato fantastici partner affiliati per la vostra luna di miele a Roma (14-18 novembre) ❤️
-    
-    🏨 **Hotel Romantici**
-    Ho selezionato 3 hotel perfetti per una luna di miele, dal lusso assoluto alle opzioni più romantiche del centro storico.
-    
-    🍽️ **Ristoranti per Cene Speciali** 
-    Per le vostre cene romantiche, dalla cucina stellata alle autentiche trattorie romane.
-    
-    🗺️ **Tour per Coppie**
-    Esperienze uniche per rendere magici i vostri giorni insieme.
-    
-    🚐 **Transfer Comodi**
-    Servizi di trasporto per muovervi senza pensieri."
-    
-    FRIENDS TRIP EXAMPLE:
-    "Fantastico! Ho trovato ottimi partner per il vostro viaggio tra amici a Roma 🎉
-    
-    🏨 **Hotel per Gruppi**
-    Hotel con camere multiple e spazi comuni perfetti per gruppi di amici.
-    
-    🍽️ **Ristoranti Vivaci**
-    Locali con atmosfera giovane e piatti da condividere.
-    
-    🗺️ **Tour Divertenti**
-    Esperienze di gruppo e attività sociali.
-    
-    🚐 **Transporto di Gruppo**
-    Servizi per spostarvi tutti insieme comodamente."
-    
-    FAMILY VACATION EXAMPLE:
-    "Eccellente! Ho selezionato partner ideali per la vostra vacanza in famiglia a Roma 👨‍👩‍👧‍👦
-    
-    🏨 **Hotel Family Friendly**
-    Strutture con camere familiari, servizi per bambini e spazi gioco.
-    
-    🍽️ **Ristoranti per Tutta la Famiglia**
-    Locali con menu bambini e atmosfera accogliente.
-    
-    🗺️ **Tour Educativi**
-    Attività divertenti e istruttive per grandi e piccini.
-    
-    🚐 **Transporto Familiare**
-    Veicoli spaziosi con seggiolini e comfort per famiglie."
-    
-    Never provide generic travel advice without specific partner recommendations from our database.
+    No Results Pattern: "Mi dispiace, non ho trovato partner affiliati per [specifica ricerca]. Prova con [alternative suggestions] o [broader location/dates]."
+    </response_templates>
+
+    Remember: Only recommend partners found through search tools. Never invent or suggest non-affiliated options.
   `,
   tools: [supabaseSearchTool, partnersFilterTool],
 });
@@ -341,67 +355,98 @@ export async function chatWithAgent(context: ChatContext) {
       },
     });
 
-    // Extract partner data from tool call outputs
-    const partners: PartnerData[] = [];
-    const toolCallOutputItems =
-      response.newItems?.filter(
-        item => item.type === "tool_call_output_item"
-      ) || [];
+    // Extract partners from all tool call results in response
+    const responseText = response.finalOutput || "";
+    const allPartners: PartnerData[] = [];
 
-    for (const toolCallOutput of toolCallOutputItems) {
-      // Type guard for toolCallOutput with output property
+    console.log("=== RESPONSE-BASED PARTNER EXTRACTION DEBUG START ===");
+    console.log("response.newItems:", response.newItems);
+
+    // Find all tool call items
+    const functionCalls =
+      response.newItems?.filter(item => item.type === "tool_call_item") || [];
+
+    console.log("Found function calls:", functionCalls.length);
+
+    for (const functionCall of functionCalls) {
+      console.log("Processing function call:", functionCall);
+
+      // Check if this is a search tool call and extract from rawItem
       if (
-        toolCallOutput.type === "tool_call_output_item" &&
-        typeof (toolCallOutput as { output?: unknown }).output === "string"
+        functionCall.rawItem &&
+        functionCall.rawItem.type === "function_call" &&
+        (functionCall.rawItem.name === "supabase_vector_search" ||
+          functionCall.rawItem.name === "partners_filter_search")
       ) {
+        const rawItem = functionCall.rawItem;
+        console.log("Found search tool call:", rawItem.name);
+
+        // Parse the arguments to understand what was searched
         try {
-          const toolOutput: ToolOutput = JSON.parse(
-            (toolCallOutput as { output: string }).output
-          );
-          if (
-            toolOutput.success &&
-            toolOutput.data &&
-            Array.isArray(toolOutput.data)
-          ) {
-            const toolPartners = toolOutput.data.map(
-              (partnerData: RawPartnerData) => ({
-                id:
-                  partnerData.id ||
-                  `partner_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-                name: partnerData.name || "Unknown Partner",
-                type: (partnerData.type as PartnerData["type"]) || "hotel",
-                description:
-                  partnerData.description || "No description available",
-                location: partnerData.location || "Location not specified",
-                price_range:
-                  partnerData.price_range ||
-                  partnerData.priceRange ||
-                  "mid-range",
-                rating:
-                  typeof partnerData.rating === "number"
-                    ? partnerData.rating
-                    : 4.0,
-                amenities: partnerData.amenities || partnerData.features || [],
-                coordinates: partnerData.coordinates || undefined,
-                images: partnerData.images || [],
-                contact_info:
-                  partnerData.contact_info || partnerData.contact || undefined,
-              })
+          const args = JSON.parse(rawItem.arguments || "{}");
+          console.log("Tool arguments:", args);
+
+          if (rawItem.name === "supabase_vector_search") {
+            const results = await vectorSearch(
+              args.query,
+              args.partnerType,
+              args.limit || 10
             );
-            partners.push(...toolPartners);
+            allPartners.push(...results);
+            console.log(
+              `Retrieved ${results.length} partners from vector search`
+            );
+          } else if (rawItem.name === "partners_filter_search") {
+            const results = await searchPartners(
+              {
+                type:
+                  args.type &&
+                  ["hotel", "restaurant", "tour", "shuttle"].includes(args.type)
+                    ? args.type
+                    : undefined,
+                location: args.location || undefined,
+                minRating: args.minRating > 0 ? args.minRating : undefined,
+              },
+              args.limit || 10
+            );
+            allPartners.push(...results);
+            console.log(
+              `Retrieved ${results.length} partners from filter search`
+            );
           }
         } catch (error) {
-          console.warn("Failed to parse tool call output:", error);
+          console.error("Error re-executing tool call:", error);
         }
       }
     }
+
+    // Remove duplicates by ID
+    const uniquePartners = allPartners.filter(
+      (partner, index, array) =>
+        array.findIndex(p => p.id === partner.id) === index
+    );
+
+    console.log(
+      `Total partners found: ${allPartners.length}, unique: ${uniquePartners.length}`
+    );
+    console.log("=== RESPONSE-BASED PARTNER EXTRACTION DEBUG END ===");
 
     return {
       success: true,
       message: response.finalOutput || "",
       toolCalls:
         response.newItems?.filter(item => item.type === "tool_call_item") || [],
-      partners: partners,
+      partners: uniquePartners,
+      debug: {
+        totalNewItems: response.newItems?.length || 0,
+        toolCallItems:
+          response.newItems?.filter(item => item.type === "tool_call_item")
+            .length || 0,
+        functionCalls: functionCalls.length,
+        partnersExtracted: uniquePartners.length,
+        totalPartnersFound: allPartners.length,
+        responseLength: responseText.length,
+      },
     };
   } catch (error) {
     console.error("Chat agent error:", error);

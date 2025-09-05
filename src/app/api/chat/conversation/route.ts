@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       message: result.message,
       toolCalls: result.toolCalls,
       partners: result.partners || [],
+      debug: result.debug,
       conversation: {
         messageCount: messages.length,
         lastMessage: messages[messages.length - 1],

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { SendIcon } from "@/components/page/Icons";
+import { useAutoResize } from "@/hooks/useAutoResize";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
@@ -17,6 +18,10 @@ export const ChatInput = ({
   onRetry,
 }: ChatInputProps) => {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize the textarea based on content
+  useAutoResize(textareaRef, message, 1, 4);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +34,18 @@ export const ChatInput = ({
   const handleRetry = () => {
     if (onRetry) {
       onRetry();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter without Shift = submit message
+    // Shift+Enter = new line (default behavior)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (message.trim() && !isLoading && !error) {
+        onSendMessage(message);
+        setMessage("");
+      }
     }
   };
 
@@ -89,13 +106,20 @@ export const ChatInput = ({
           </div>
         ) : (
           // Stato normale - input form
-          <form className="flex items-center gap-2" onSubmit={handleSubmit}>
-            <Input
-              className="focus:ring-primary-500 flex-1 resize-none overflow-hidden rounded-lg border-none bg-neutral-700 px-4 py-3 text-base font-normal text-neutral-100 placeholder-neutral-400 focus:ring-2 focus:outline-none"
-              placeholder={isLoading ? "Elaborando..." : "Ask me anything..."}
+          <form className="flex items-start gap-2" onSubmit={handleSubmit}>
+            <Textarea
+              ref={textareaRef}
+              className="focus:ring-primary-500 min-h-[2.75rem] flex-1 resize-none rounded-lg border-none bg-neutral-700 px-4 py-3 text-base font-normal text-neutral-100 placeholder-neutral-400 focus:ring-2 focus:outline-none"
+              placeholder={
+                isLoading
+                  ? "Elaborando..."
+                  : "Scrivi il tuo messaggio... (Shift+Enter per andare a capo)"
+              }
               value={message}
               onChange={e => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
               disabled={isLoading}
+              rows={1}
             />
             <Button
               type="submit"

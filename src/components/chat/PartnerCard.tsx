@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { PartnerData } from "@/types";
 
 interface PartnerCardProps {
@@ -20,6 +21,7 @@ const PriceRangeLabels = {
 } as const;
 
 export const PartnerCard = ({ partner }: PartnerCardProps) => {
+  const router = useRouter();
   // Genera stelle per rating
   const renderStars = (rating: number) => {
     const stars = [];
@@ -47,8 +49,23 @@ export const PartnerCard = ({ partner }: PartnerCardProps) => {
     partner.images?.[0] ||
     "https://images.unsplash.com/photo-1566073771259-6a8506099945";
 
+  const handleClick = () => {
+    const url = `/partner/${partner.id}`;
+    // Open in new tab/window when running in the browser
+    if (typeof window !== "undefined") {
+      const newWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (newWindow) newWindow.opener = null;
+    } else {
+      // Fallback for non-browser environments
+      router.push(url);
+    }
+  };
+
   return (
-    <div className="max-w-sm overflow-hidden rounded-xl border border-neutral-700 bg-neutral-800 transition-colors duration-200 hover:border-neutral-600">
+    <div
+      className="max-w-sm transform cursor-pointer overflow-hidden rounded-xl border border-neutral-700 bg-neutral-800 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-600 hover:shadow-lg"
+      onClick={handleClick}
+    >
       {/* Immagine */}
       <div className="relative h-48 w-full">
         <Image

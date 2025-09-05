@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TravelApp - Destination Details</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #13a4ec;
+            --secondary-color: #0d6e9e;
+            --background-color: #1a1a1a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #2a2a2a;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+        .glassmorphism {
+            background: rgba(42, 42, 42, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-[var(--background-color)] text-[var(--text-primary)]">
+<div class="relative flex size-full min-h-screen flex-col overflow-x-hidden">
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-[var(--accent-color)] px-10 py-4 glassmorphism">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-white">
+<div class="size-6 text-[var(--primary-color)]">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 11.2727C44 14.0109 39.8386 16.3957 33.69 17.6364C39.8386 18.877 44 21.2618 44 24C44 26.7382 39.8386 29.123 33.69 30.3636C39.8386 31.6043 44 33.9891 44 36.7273C44 40.7439 35.0457 44 24 44C12.9543 44 4 40.7439 4 36.7273C4 33.9891 8.16144 31.6043 14.31 30.3636C8.16144 29.123 4 26.7382 4 24C4 21.2618 8.16144 18.877 14.31 17.6364C8.16144 16.3957 4 14.0109 4 11.2727C4 7.25611 12.9543 4 24 4C35.0457 4 44 7.25611 44 11.2727Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-white text-xl font-bold leading-tight tracking-[-0.015em]">TravelApp</h2>
+</div>
+<nav class="hidden md:flex items-center gap-9">
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Explore</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Trips</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Inbox</a>
+</nav>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<label class="relative hidden sm:block min-w-40 max-w-64">
+<div class="absolute inset-y-0 left-0 flex items-center pl-3">
+<svg class="h-5 w-5 text-[var(--text-secondary)]" fill="currentColor" height="24px" viewBox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path>
+</svg>
+</div>
+<input class="form-input w-full rounded-xl border-none bg-[var(--accent-color)] h-10 placeholder:text-[var(--text-secondary)] pl-10 pr-4 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]" placeholder="Search" value=""/>
+</label>
+<button class="flex items-center justify-center rounded-full h-10 w-10 bg-[var(--accent-color)] text-[var(--text-primary)] hover:bg-[var(--secondary-color)] transition-colors">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"></path>
+</svg>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDUoFdRXeQt0vRXI6z-Qa_tFpyFpBSdzCa8OegAl-Xgt0Qm9wxMNPbCvSGY7xXgI7H8UQtHQHC5nXzc4AKwhWbarLNK1Ua8JWRMxrQbyzEHc14-bXMthKC_jCcrkr9kLwDyegfAilsEsXia7IEdDPD4lVFXN8ei6u4ZlA0s--6kAJuw-uNWQ-ampGoHSBaS6SAGDVwP9ythTFQRNX74Gqf5p_GFpI4jAX6ejO5_sKiQhetYMJFPIg-QTwF5l_HxDDfODBvExkm5Y8Dk");'></div>
+</div>
+</header>
+<main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-5xl">
+<div class="w-full h-96 rounded-2xl overflow-hidden relative shadow-lg mb-8">
+<div class="absolute inset-0 bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDm5t9tMNPAmAFkmfTA2TSXOgdp79_ZAwRaJxkr4Ymudrz68ve9KUsZV_3V6XY0RuM1y7RSA2vkLjbv3-hl5hw_xzkAKMcEHpd-vOIqoqynFBN0nbBTZCRSO1QbwnYgTSsEbaGqROn8d_h_DXJf_jITgXIJL5aRPtLkaYGyC05dfPwxm9jkEfj8uElhKR3LolQb19ohYJHQjO0zcd1XghvFNNhsLp6M6VxLGNrv9JwPsUXY5_XQ0vjoqIAJLyYOQz0fiH3coPHdv-Ro");'></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-8">
+<h1 class="text-4xl md:text-5xl font-extrabold text-white">Lake Serenity</h1>
+</div>
+<button class="absolute top-6 right-6 flex items-center justify-center size-12 rounded-full glassmorphism text-white hover:bg-[var(--primary-color)] transition-colors duration-300">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<div class="sticky top-[76px] z-40 bg-[var(--background-color)]/80 backdrop-blur-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 border-b border-[var(--accent-color)] mb-8">
+<div class="flex items-center space-x-8 overflow-x-auto -mb-px">
+<a class="flex flex-col items-center justify-center border-b-2 border-[var(--primary-color)] text-[var(--primary-color)] pb-3 pt-4 px-1" href="#"><p class="text-sm font-bold whitespace-nowrap">Overview</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Things to do</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Reviews</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Map</p></a>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 space-y-12">
+<section class="glassmorphism p-6 rounded-2xl">
+<p class="text-base text-[var(--text-secondary)] leading-relaxed">
+                            Lake Serenity, nestled in the heart of the majestic Sierra Nevada mountains, is a breathtaking alpine lake renowned for its crystal-clear turquoise waters and stunning panoramic views. This natural wonder offers a tranquil escape from the hustle and bustle of city life, inviting visitors to immerse themselves in its serene beauty and engage in a variety of outdoor activities. The lake's pristine environment supports a diverse ecosystem, making it a haven for nature enthusiasts and photographers alike. Whether you're seeking adventure or relaxation, Lake Serenity promises an unforgettable experience.
+                        </p>
+</section>
+<section>
+<h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">Highlights</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD-obgKWoqDcHI48Hpk2fcKqXJw-Y0_DYLb3mytdkUCy2sS6KQ_vRvl-TTcpK62cFxJCSygvbjbi05PPfZUEscsjVy3zUOJ5GvhVl5lb9sjnpTR-8WarQSDqemi2IcVWJ0ApXCzTq967XFKHiigRW91doPz6ca318NYJRQmPBKRARm3OcGkslpyvJukGvxnIyYpkallkyryH5SQZz3B12JbPMSpqIsKc0IDHc4GE-YTpWQTTSVH8e3yDhTakoHNZ6oYEWw1a8ZBk_kp");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Hiking Trails</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Explore scenic trails with varying difficulty levels.</p>
+</div>
+</div>
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDakTedpx-w6YUV8Bqex_T3JMkUMY-sunMHwxZYRZ9pkm3F5hHBdrsSUj3hAowsDv2ohUs9sEVPjHNX0H-jsQHDkjRdYFpSFI73MmmMvtGQNf5Y12TSjJDMWAONi02ZbF_j-i4tMUdWE3_A5fAbh4PRfV6n6ji8SJkEYLBGhRpjz_pj0jkm758QfVYlun-311hjCLGtrdmw-8yaK1FhfnOvkPj8YZL24o3oEN-u2NX82Kno6BQB6Mi8OQNjgrO0R7OYGI6qk6sH6wyW");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Water Sports</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Enjoy kayaking, paddleboarding, and swimming.</p>
+</div>
+</div>
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxqPH3SmJzO4ihsEUxEssGF4PLS4O4JBhjSVQWRZ0zuqfpWwfIB5D4-m0qWb1iUIWk94nU6Lii8XAL2PN5n1DBoYYprr5zAEIUprUsN4vE5bCSjCkfQFif1FWJ1TqPZjTEWPP94lEDOdL-3jWzhoBrJaYgwlURq-LTwD_AVFEiPVoprikTH1Pukjr-DBQaH5h7VW6QrPXesEV0E5OtnCp15iFLNitDY2hIP6Ra12pZsWrL-QtuMHq1AhF1yDoy2iabBj4WBGLCVQKx");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Wildlife Watching</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Spot diverse bird species and other wildlife.</p>
+</div>
+</div>
+</div>
+</section>
+<section>
+<h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">Reviews</h2>
+<div class="glassmorphism p-6 rounded-2xl">
+<div class="flex flex-col md:flex-row items-center gap-6 md:gap-12 mb-8">
+<div class="flex flex-col items-center gap-2">
+<p class="text-5xl font-black text-white">4.7</p>
+<div class="flex gap-0.5">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--text-secondary)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M128,188.33,147,157.85l33.87,1.24a16,16,0,0,0,9.11-28.06l-26.27-22.84,8.36-36.21a16,16,0,0,0-23.84-17.34L128,49.25,100.72,34.64a16,16,0,0,0-23.84,17.34l8.36,36.21-26.27,22.84a16,16,0,0,0,9.11,28.06l33.87-1.24L128,188.33Z M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-sm">Based on 125 reviews</p>
+</div>
+<div class="w-full flex-1 grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2">
+<p class="text-sm font-medium text-white">5</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 50%;"></div></div><p class="text-sm text-[var(--text-secondary)]">50%</p>
+<p class="text-sm font-medium text-white">4</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 30%;"></div></div><p class="text-sm text-[var(--text-secondary)]">30%</p>
+<p class="text-sm font-medium text-white">3</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 10%;"></div></div><p class="text-sm text-[var(--text-secondary)]">10%</p>
+<p class="text-sm font-medium text-white">2</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 5%;"></div></div><p class="text-sm text-[var(--text-secondary)]">5%</p>
+<p class="text-sm font-medium text-white">1</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 5%;"></div></div><p class="text-sm text-[var(--text-secondary)]">5%</p>
+</div>
+</div>
+<div class="space-y-8 divide-y divide-[var(--accent-color)]">
+<div class="pt-8 first:pt-0">
+<div class="flex items-center gap-3 mb-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBtB3rZ17jHhorsvokf7ekn1bjd2tvsIY65lgJeC0rETlIatRpkJeVm7Lu1uQ34EU9_swMTfLfaKWEMDfs6cPjU55gBmr4sF0i3mbNp8R2SveDETu9eNMtWqMn9aHQs6pmUOdkbZvvEStHwQLitFSQCC09sDvKt4D4bFco626ELYN47DHrFu9dQ3c3FPP20JPciiQI4sNJTxXm6lIqdYQ7jy4-j_k3F3mt8zTdiEFzkMcpLolmpKt7Sg0Ye2zBOoVdECGBus5o9qTMM");'></div>
+<div>
+<p class="text-white text-base font-medium">Sophia Bennett</p>
+<p class="text-[var(--text-secondary)] text-sm">1 month ago</p>
+</div>
+</div>
+<div class="flex gap-0.5 mb-3">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-base leading-relaxed mb-4">Lake Serenity is an absolute gem! The views are breathtaking, and the hiking trails are well-maintained. I spent a week here and left feeling completely rejuvenated. Highly recommend!</p>
+</div>
+<div class="pt-8">
+<div class="flex items-center gap-3 mb-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD8m1NzdoorOuSiHy8yU6TX6BMRe635J7nVNUX59mWYwpMB8hwHMgHIA6ZIUnIhnZlWgu7wjW3Mp4Ba6kCpYoJox9iG6S8V_NkqLsMVkll8QcPOHBtPJW7J8Kn_YogHJgPF-84m2quMyhe43LrtqKNxAeFHGhRTQpoJrm-8nBIZURX_HLdxlgtNVjLIbQ3CSBmBtRwxdbsmyQHiRmhfa3hI5aNFPBI3XQV1NTbPniieZ9f6aw-0eUiXj0ebFgVd-yjwjDQuhoHsDW75");'></div>
+<div>
+<p class="text-white text-base font-medium">Ethan Carter</p>
+<p class="text-[var(--text-secondary)] text-sm">2 months ago</p>
+</div>
+</div>
+<div class="flex gap-0.5 mb-3">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--text-secondary)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M128,188.33,147,157.85l33.87,1.24a16,16,0,0,0,9.11-28.06l-26.27-22.84,8.36-36.21a16,16,0,0,0-23.84-17.34L128,49.25,100.72,34.64a16,16,0,0,0-23.84,17.34l8.36,36.21-26.27,22.84a16,16,0,0,0,9.11,28.06l33.87-1.24L128,188.33Z M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-base leading-relaxed mb-4">Beautiful lake with plenty of activities. The water sports were a highlight, and the local restaurants offered delicious food. The only downside was the occasional crowds during peak season.</p>
+</div>
+</div>
+<div class="flex justify-center pt-8">
+<button class="bg-transparent border border-[var(--primary-color)] text-[var(--primary-color)] py-2 px-5 rounded-lg hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-300 ease-in-out text-sm font-bold">
+                                    See all reviews
+                                </button>
+</div>
+</div>
+</section>
+</div>
+<aside class="lg:col-span-1 space-y-8 lg:sticky lg:top-32 self-start">
+<div class="glassmorphism p-6 rounded-2xl space-y-6">
+<h3 class="text-2xl font-bold text-white">Book your trip</h3>
+<div class="space-y-4">
+<button class="w-full bg-[var(--primary-color)] text-white py-3 px-6 rounded-lg hover:bg-[var(--secondary-color)] transition-colors duration-300 ease-in-out font-bold">
+                                Book Now
+                            </button>
+<button class="w-full bg-transparent border border-[var(--primary-color)] text-[var(--primary-color)] py-3 px-6 rounded-lg hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-300 ease-in-out font-bold">
+                                Contact Host
+                            </button>
+</div>
+</div>
+<div class="glassmorphism p-6 rounded-2xl">
+<h3 class="text-xl font-bold text-white mb-4">Accommodation</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-p6v6R_56IRXSFobrQ9JGK6hWkaErJ4SovYXIZ8X6EztECW7Xp3tMnEJ0uGI4cTjXm1nTbXrOb_eByKvFMgWHPDSvBdb27VP2kEbpbMaGfmIVM74FFzKqJPZE8i_GQw3vnuPhy1LNXpKLQpapTepy3rauaKRHN3Ln7katBLFWR0L2f1P9jl1DZgqFnKMHutO7f3ikYIWqFEkyBjqJSV-BE9kZvQfiJRl5B83aj0z15tV1yamp3y5UNS2-THAlBFVJd3FHx1EpHlJ3");'></div>
+<div>
+<p class="font-semibold text-white">Cozy Cabin Retreat</p>
+<p class="text-sm text-[var(--text-secondary)]">Rustic cabin with stunning lake views.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBOOT7l-RWjiSfa8iSgc8siWqBgdnwQZKWesAlG5k-2wDkJfWDnaRYqTDh16zyCEriXmZULry8GcPUwNe6PXyBIwR2yrS6zLqTCuNGpEMuNbgaI7hnVWfOf7EKXBDoxsilrvKbUSpB-KV350h694rzCmHdfhgF0URxUcBkEhtcpVwAtwB-V3FboySA2hAFg2oHNUd9ESt1l-MuuUCYhZlPbKZ6YCYtKiwQvzKMmeUm9o5TFFHGbn0y-0qEJ6GlsxR42evIDb-fwdJ-L");'></div>
+<div>
+<p class="font-semibold text-white">Lakefront Hotel</p>
+<p class="text-sm text-[var(--text-secondary)]">Luxury hotel with direct lake access.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="glassmorphism p-6 rounded-2xl">
+<h3 class="text-xl font-bold text-white mb-4">Dining</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD3OsGKlvvheFrhujbw-7CYjcaE9bG-ny9X23gHbBI5u_wB-MABiwpxvdXDQ_OUX2-TeEQspmh7zrb9ctehUUFj_rP5jBaBsPrB5k9G4LbAqcRsu-xr1suyH2zfzlAMPUw23WTynQsPf0GZsoG1wBjx26SoDY6WqAokwCyrsy0t5q77dyA8q25YV6lNnLm1Cfl_usygvDhPPDFiBUlflrtzVsn-lygPtod8LyumXnDSPH2ZmbBsW_CA0Dcn5yAVyeRNPDpC2a6O-6ot");'></div>
+<div>
+<p class="font-semibold text-white">Lakeside Bistro</p>
+<p class="text-sm text-[var(--text-secondary)]">Fine dining with panoramic lake views.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB2d7Y8IHADqtCC4c0KXdtSj8Llg8Pu1vPK38_IBLWMY3PG1fcb8IA6lDgbVt8uyDrCcE5LoTJH7AJ-QmgrYvULHYKKm7I-1pSMnS2lGEIB40b3y0bm63V4vw383HNNAMtNT-L0nbMcrKblwfjS-n9EuhaxUnDeL1kta3ztDnk93nowS14tVqcBYMwcSYmVbI077ID34EmHn60xzZVEru4P8p89T_-i7qZbG00-L5tUYOvwZqkbYo_HltdhqMkhVzXK6KACtfw5dK6B");'></div>
+<div>
+<p class="font-semibold text-white">Mountain View Cafe</p>
+<p class="text-sm text-[var(--text-secondary)]">Casual cafe with outdoor seating.</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+
+</body></html><!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TravelApp - Destination Details</title>
+<link href="data:image/x-icon;base64," rel="icon" type="image/x-icon"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #13a4ec;
+            --secondary-color: #0d6e9e;
+            --background-color: #1a1a1a;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #2a2a2a;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+        .glassmorphism {
+            background: rgba(42, 42, 42, 0.5);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-[var(--background-color)] text-[var(--text-primary)]">
+<div class="relative flex size-full min-h-screen flex-col overflow-x-hidden">
+<header class="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-[var(--accent-color)] px-10 py-4 glassmorphism">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-white">
+<div class="size-6 text-[var(--primary-color)]">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 11.2727C44 14.0109 39.8386 16.3957 33.69 17.6364C39.8386 18.877 44 21.2618 44 24C44 26.7382 39.8386 29.123 33.69 30.3636C39.8386 31.6043 44 33.9891 44 36.7273C44 40.7439 35.0457 44 24 44C12.9543 44 4 40.7439 4 36.7273C4 33.9891 8.16144 31.6043 14.31 30.3636C8.16144 29.123 4 26.7382 4 24C4 21.2618 8.16144 18.877 14.31 17.6364C8.16144 16.3957 4 14.0109 4 11.2727C4 7.25611 12.9543 4 24 4C35.0457 4 44 7.25611 44 11.2727Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-white text-xl font-bold leading-tight tracking-[-0.015em]">TravelApp</h2>
+</div>
+<nav class="hidden md:flex items-center gap-9">
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Explore</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Trips</a>
+<a class="text-sm font-medium text-[var(--text-primary)] hover:text-[var(--primary-color)] transition-colors" href="#">Inbox</a>
+</nav>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<label class="relative hidden sm:block min-w-40 max-w-64">
+<div class="absolute inset-y-0 left-0 flex items-center pl-3">
+<svg class="h-5 w-5 text-[var(--text-secondary)]" fill="currentColor" height="24px" viewBox="0 0 256 256" width="24px" xmlns="http://www.w3.org/2000/svg">
+<path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path>
+</svg>
+</div>
+<input class="form-input w-full rounded-xl border-none bg-[var(--accent-color)] h-10 placeholder:text-[var(--text-secondary)] pl-10 pr-4 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]" placeholder="Search" value=""/>
+</label>
+<button class="flex items-center justify-center rounded-full h-10 w-10 bg-[var(--accent-color)] text-[var(--text-primary)] hover:bg-[var(--secondary-color)] transition-colors">
+<svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg">
+<path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"></path>
+</svg>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDUoFdRXeQt0vRXI6z-Qa_tFpyFpBSdzCa8OegAl-Xgt0Qm9wxMNPbCvSGY7xXgI7H8UQtHQHC5nXzc4AKwhWbarLNK1Ua8JWRMxrQbyzEHc14-bXMthKC_jCcrkr9kLwDyegfAilsEsXia7IEdDPD4lVFXN8ei6u4ZlA0s--6kAJuw-uNWQ-ampGoHSBaS6SAGDVwP9ythTFQRNX74Gqf5p_GFpI4jAX6ejO5_sKiQhetYMJFPIg-QTwF5l_HxDDfODBvExkm5Y8Dk");'></div>
+</div>
+</header>
+<main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-5xl">
+<div class="w-full h-96 rounded-2xl overflow-hidden relative shadow-lg mb-8">
+<div class="absolute inset-0 bg-cover bg-center" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDm5t9tMNPAmAFkmfTA2TSXOgdp79_ZAwRaJxkr4Ymudrz68ve9KUsZV_3V6XY0RuM1y7RSA2vkLjbv3-hl5hw_xzkAKMcEHpd-vOIqoqynFBN0nbBTZCRSO1QbwnYgTSsEbaGqROn8d_h_DXJf_jITgXIJL5aRPtLkaYGyC05dfPwxm9jkEfj8uElhKR3LolQb19ohYJHQjO0zcd1XghvFNNhsLp6M6VxLGNrv9JwPsUXY5_XQ0vjoqIAJLyYOQz0fiH3coPHdv-Ro");'></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-8">
+<h1 class="text-4xl md:text-5xl font-extrabold text-white">Lake Serenity</h1>
+</div>
+<button class="absolute top-6 right-6 flex items-center justify-center size-12 rounded-full glassmorphism text-white hover:bg-[var(--primary-color)] transition-colors duration-300">
+<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<div class="sticky top-[76px] z-40 bg-[var(--background-color)]/80 backdrop-blur-sm -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 border-b border-[var(--accent-color)] mb-8">
+<div class="flex items-center space-x-8 overflow-x-auto -mb-px">
+<a class="flex flex-col items-center justify-center border-b-2 border-[var(--primary-color)] text-[var(--primary-color)] pb-3 pt-4 px-1" href="#"><p class="text-sm font-bold whitespace-nowrap">Overview</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Things to do</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Reviews</p></a>
+<a class="flex flex-col items-center justify-center border-b-2 border-transparent text-[var(--text-secondary)] hover:text-[var(--primary-color)] hover:border-[var(--primary-color)] pb-3 pt-4 px-1 transition-colors" href="#"><p class="text-sm font-bold whitespace-nowrap">Map</p></a>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 space-y-12">
+<section class="glassmorphism p-6 rounded-2xl">
+<p class="text-base text-[var(--text-secondary)] leading-relaxed">
+                            Lake Serenity, nestled in the heart of the majestic Sierra Nevada mountains, is a breathtaking alpine lake renowned for its crystal-clear turquoise waters and stunning panoramic views. This natural wonder offers a tranquil escape from the hustle and bustle of city life, inviting visitors to immerse themselves in its serene beauty and engage in a variety of outdoor activities. The lake's pristine environment supports a diverse ecosystem, making it a haven for nature enthusiasts and photographers alike. Whether you're seeking adventure or relaxation, Lake Serenity promises an unforgettable experience.
+                        </p>
+</section>
+<section>
+<h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">Highlights</h2>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD-obgKWoqDcHI48Hpk2fcKqXJw-Y0_DYLb3mytdkUCy2sS6KQ_vRvl-TTcpK62cFxJCSygvbjbi05PPfZUEscsjVy3zUOJ5GvhVl5lb9sjnpTR-8WarQSDqemi2IcVWJ0ApXCzTq967XFKHiigRW91doPz6ca318NYJRQmPBKRARm3OcGkslpyvJukGvxnIyYpkallkyryH5SQZz3B12JbPMSpqIsKc0IDHc4GE-YTpWQTTSVH8e3yDhTakoHNZ6oYEWw1a8ZBk_kp");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Hiking Trails</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Explore scenic trails with varying difficulty levels.</p>
+</div>
+</div>
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDakTedpx-w6YUV8Bqex_T3JMkUMY-sunMHwxZYRZ9pkm3F5hHBdrsSUj3hAowsDv2ohUs9sEVPjHNX0H-jsQHDkjRdYFpSFI73MmmMvtGQNf5Y12TSjJDMWAONi02ZbF_j-i4tMUdWE3_A5fAbh4PRfV6n6ji8SJkEYLBGhRpjz_pj0jkm758QfVYlun-311hjCLGtrdmw-8yaK1FhfnOvkPj8YZL24o3oEN-u2NX82Kno6BQB6Mi8OQNjgrO0R7OYGI6qk6sH6wyW");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Water Sports</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Enjoy kayaking, paddleboarding, and swimming.</p>
+</div>
+</div>
+<div class="flex flex-col gap-4 group">
+<div class="w-full bg-center bg-no-repeat aspect-square bg-cover rounded-xl overflow-hidden transform group-hover:scale-105 transition-transform duration-300" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBxqPH3SmJzO4ihsEUxEssGF4PLS4O4JBhjSVQWRZ0zuqfpWwfIB5D4-m0qWb1iUIWk94nU6Lii8XAL2PN5n1DBoYYprr5zAEIUprUsN4vE5bCSjCkfQFif1FWJ1TqPZjTEWPP94lEDOdL-3jWzhoBrJaYgwlURq-LTwD_AVFEiPVoprikTH1Pukjr-DBQaH5h7VW6QrPXesEV0E5OtnCp15iFLNitDY2hIP6Ra12pZsWrL-QtuMHq1AhF1yDoy2iabBj4WBGLCVQKx");'></div>
+<div>
+<p class="text-[var(--text-primary)] text-base font-semibold">Wildlife Watching</p>
+<p class="text-[var(--text-secondary)] text-sm font-normal">Spot diverse bird species and other wildlife.</p>
+</div>
+</div>
+</div>
+</section>
+<section>
+<h2 class="text-3xl font-bold text-[var(--text-primary)] mb-6">Reviews</h2>
+<div class="glassmorphism p-6 rounded-2xl">
+<div class="flex flex-col md:flex-row items-center gap-6 md:gap-12 mb-8">
+<div class="flex flex-col items-center gap-2">
+<p class="text-5xl font-black text-white">4.7</p>
+<div class="flex gap-0.5">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--text-secondary)]" data-icon="Star" data-size="20px" data-weight="fill"><svg fill="currentColor" height="20px" viewBox="0 0 256 256" width="20px" xmlns="http://www.w3.org/2000/svg"><path d="M128,188.33,147,157.85l33.87,1.24a16,16,0,0,0,9.11-28.06l-26.27-22.84,8.36-36.21a16,16,0,0,0-23.84-17.34L128,49.25,100.72,34.64a16,16,0,0,0-23.84,17.34l8.36,36.21-26.27,22.84a16,16,0,0,0,9.11,28.06l33.87-1.24L128,188.33Z M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-sm">Based on 125 reviews</p>
+</div>
+<div class="w-full flex-1 grid grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2">
+<p class="text-sm font-medium text-white">5</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 50%;"></div></div><p class="text-sm text-[var(--text-secondary)]">50%</p>
+<p class="text-sm font-medium text-white">4</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 30%;"></div></div><p class="text-sm text-[var(--text-secondary)]">30%</p>
+<p class="text-sm font-medium text-white">3</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 10%;"></div></div><p class="text-sm text-[var(--text-secondary)]">10%</p>
+<p class="text-sm font-medium text-white">2</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 5%;"></div></div><p class="text-sm text-[var(--text-secondary)]">5%</p>
+<p class="text-sm font-medium text-white">1</p><div class="flex h-2 flex-1 overflow-hidden rounded-full bg-[var(--accent-color)]"><div class="rounded-full bg-[var(--primary-color)]" style="width: 5%;"></div></div><p class="text-sm text-[var(--text-secondary)]">5%</p>
+</div>
+</div>
+<div class="space-y-8 divide-y divide-[var(--accent-color)]">
+<div class="pt-8 first:pt-0">
+<div class="flex items-center gap-3 mb-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBtB3rZ17jHhorsvokf7ekn1bjd2tvsIY65lgJeC0rETlIatRpkJeVm7Lu1uQ34EU9_swMTfLfaKWEMDfs6cPjU55gBmr4sF0i3mbNp8R2SveDETu9eNMtWqMn9aHQs6pmUOdkbZvvEStHwQLitFSQCC09sDvKt4D4bFco626ELYN47DHrFu9dQ3c3FPP20JPciiQI4sNJTxXm6lIqdYQ7jy4-j_k3F3mt8zTdiEFzkMcpLolmpKt7Sg0Ye2zBOoVdECGBus5o9qTMM");'></div>
+<div>
+<p class="text-white text-base font-medium">Sophia Bennett</p>
+<p class="text-[var(--text-secondary)] text-sm">1 month ago</p>
+</div>
+</div>
+<div class="flex gap-0.5 mb-3">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-base leading-relaxed mb-4">Lake Serenity is an absolute gem! The views are breathtaking, and the hiking trails are well-maintained. I spent a week here and left feeling completely rejuvenated. Highly recommend!</p>
+</div>
+<div class="pt-8">
+<div class="flex items-center gap-3 mb-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD8m1NzdoorOuSiHy8yU6TX6BMRe635J7nVNUX59mWYwpMB8hwHMgHIA6ZIUnIhnZlWgu7wjW3Mp4Ba6kCpYoJox9iG6S8V_NkqLsMVkll8QcPOHBtPJW7J8Kn_YogHJgPF-84m2quMyhe43LrtqKNxAeFHGhRTQpoJrm-8nBIZURX_HLdxlgtNVjLIbQ3CSBmBtRwxdbsmyQHiRmhfa3hI5aNFPBI3XQV1NTbPniieZ9f6aw-0eUiXj0ebFgVd-yjwjDQuhoHsDW75");'></div>
+<div>
+<p class="text-white text-base font-medium">Ethan Carter</p>
+<p class="text-[var(--text-secondary)] text-sm">2 months ago</p>
+</div>
+</div>
+<div class="flex gap-0.5 mb-3">
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--primary-color)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+<div class="text-[var(--text-secondary)]" data-icon="Star" data-size="16px" data-weight="fill"><svg fill="currentColor" height="16px" viewBox="0 0 256 256" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M128,188.33,147,157.85l33.87,1.24a16,16,0,0,0,9.11-28.06l-26.27-22.84,8.36-36.21a16,16,0,0,0-23.84-17.34L128,49.25,100.72,34.64a16,16,0,0,0-23.84,17.34l8.36,36.21-26.27,22.84a16,16,0,0,0,9.11,28.06l33.87-1.24L128,188.33Z M234.5,114.38l-45.1,39.36,13.51,58.6a16,16,0,0,1-23.84,17.34l-51.11-31-51,31a16,16,0,0,1-23.84-17.34L66.61,153.8,21.5,114.38a16,16,0,0,1,9.11-28.06l59.46-5.15,23.21-55.36a15.95,15.95,0,0,1,29.44,0h0L166,81.17l59.44,5.15a16,16,0,0,1,9.11,28.06Z"></path></svg></div>
+</div>
+<p class="text-[var(--text-secondary)] text-base leading-relaxed mb-4">Beautiful lake with plenty of activities. The water sports were a highlight, and the local restaurants offered delicious food. The only downside was the occasional crowds during peak season.</p>
+</div>
+</div>
+<div class="flex justify-center pt-8">
+<button class="bg-transparent border border-[var(--primary-color)] text-[var(--primary-color)] py-2 px-5 rounded-lg hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-300 ease-in-out text-sm font-bold">
+                                    See all reviews
+                                </button>
+</div>
+</div>
+</section>
+</div>
+<aside class="lg:col-span-1 space-y-8 lg:sticky lg:top-32 self-start">
+<div class="glassmorphism p-6 rounded-2xl space-y-6">
+<h3 class="text-2xl font-bold text-white">Book your trip</h3>
+<div class="space-y-4">
+<button class="w-full bg-[var(--primary-color)] text-white py-3 px-6 rounded-lg hover:bg-[var(--secondary-color)] transition-colors duration-300 ease-in-out font-bold">
+                                Book Now
+                            </button>
+<button class="w-full bg-transparent border border-[var(--primary-color)] text-[var(--primary-color)] py-3 px-6 rounded-lg hover:bg-[var(--primary-color)] hover:text-white transition-colors duration-300 ease-in-out font-bold">
+                                Contact Host
+                            </button>
+</div>
+</div>
+<div class="glassmorphism p-6 rounded-2xl">
+<h3 class="text-xl font-bold text-white mb-4">Accommodation</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-p6v6R_56IRXSFobrQ9JGK6hWkaErJ4SovYXIZ8X6EztECW7Xp3tMnEJ0uGI4cTjXm1nTbXrOb_eByKvFMgWHPDSvBdb27VP2kEbpbMaGfmIVM74FFzKqJPZE8i_GQw3vnuPhy1LNXpKLQpapTepy3rauaKRHN3Ln7katBLFWR0L2f1P9jl1DZgqFnKMHutO7f3ikYIWqFEkyBjqJSV-BE9kZvQfiJRl5B83aj0z15tV1yamp3y5UNS2-THAlBFVJd3FHx1EpHlJ3");'></div>
+<div>
+<p class="font-semibold text-white">Cozy Cabin Retreat</p>
+<p class="text-sm text-[var(--text-secondary)]">Rustic cabin with stunning lake views.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBOOT7l-RWjiSfa8iSgc8siWqBgdnwQZKWesAlG5k-2wDkJfWDnaRYqTDh16zyCEriXmZULry8GcPUwNe6PXyBIwR2yrS6zLqTCuNGpEMuNbgaI7hnVWfOf7EKXBDoxsilrvKbUSpB-KV350h694rzCmHdfhgF0URxUcBkEhtcpVwAtwB-V3FboySA2hAFg2oHNUd9ESt1l-MuuUCYhZlPbKZ6YCYtKiwQvzKMmeUm9o5TFFHGbn0y-0qEJ6GlsxR42evIDb-fwdJ-L");'></div>
+<div>
+<p class="font-semibold text-white">Lakefront Hotel</p>
+<p class="text-sm text-[var(--text-secondary)]">Luxury hotel with direct lake access.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="glassmorphism p-6 rounded-2xl">
+<h3 class="text-xl font-bold text-white mb-4">Dining</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD3OsGKlvvheFrhujbw-7CYjcaE9bG-ny9X23gHbBI5u_wB-MABiwpxvdXDQ_OUX2-TeEQspmh7zrb9ctehUUFj_rP5jBaBsPrB5k9G4LbAqcRsu-xr1suyH2zfzlAMPUw23WTynQsPf0GZsoG1wBjx26SoDY6WqAokwCyrsy0t5q77dyA8q25YV6lNnLm1Cfl_usygvDhPPDFiBUlflrtzVsn-lygPtod8LyumXnDSPH2ZmbBsW_CA0Dcn5yAVyeRNPDpC2a6O-6ot");'></div>
+<div>
+<p class="font-semibold text-white">Lakeside Bistro</p>
+<p class="text-sm text-[var(--text-secondary)]">Fine dining with panoramic lake views.</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-20 h-20 bg-center bg-cover rounded-lg" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB2d7Y8IHADqtCC4c0KXdtSj8Llg8Pu1vPK38_IBLWMY3PG1fcb8IA6lDgbVt8uyDrCcE5LoTJH7AJ-QmgrYvULHYKKm7I-1pSMnS2lGEIB40b3y0bm63V4vw383HNNAMtNT-L0nbMcrKblwfjS-n9EuhaxUnDeL1kta3ztDnk93nowS14tVqcBYMwcSYmVbI077ID34EmHn60xzZVEru4P8p89T_-i7qZbG00-L5tUYOvwZqkbYo_HltdhqMkhVzXK6KACtfw5dK6B");'></div>
+<div>
+<p class="font-semibold text-white">Mountain View Cafe</p>
+<p class="text-sm text-[var(--text-secondary)]">Casual cafe with outdoor seating.</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+
+</body></html>
