@@ -1,5 +1,5 @@
-import Image from "next/image";
-import { ChatMessage } from "@/types"; // Assuming ChatMessage is defined in types/index.ts
+import { ChatMessage } from "@/types";
+import { PartnerCard } from "./PartnerCard";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -8,40 +8,49 @@ interface MessageBubbleProps {
 export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isUser = message.role === "user";
 
-  const avatarSrc = isUser
-    ? "https://lh3.googleusercontent.com/aida-public/AB6AXuAMJrk2HeLy0DEiUusSnTkSm9h4qfs92CXFZLN-v4JvzigTQt9TVObIzQObkQC_OAw4ktpQQwHhCNYt-ZD-g9y3g0xEppsHoa3r3myc6mwxJVa31KJ3Y_7OcFtBM91dfkguSmAoSy15JkGBM7Rqu7c672vRXUj2joBVgz3xQMnooi_6oFgO5LsOGVR9vFVcKMLdJjE0lY62mha4R1wWHWFUEI3SS5ZTLWSVmvxv8wSwYRXaYIjPXIGzkFyDk86I0DPPUaMOA2FjGflRXBYfGwkVoII7QUrgHKAuvJrssPeL7K4HXbOx6lmxCVxMUxy7SN74bjAum8ZNyFG_MWUzM1T5Zf8ENmYkvotmvFw-"
-    : "https://lh3.googleusercontent.com/aida-public/AB6AXuCVaWAi5itIjjRD4rSJneRYSpO7PQMd92UYBEPMnPB4dbRtPNDz0juDC5W8GNOIDTmTFr-v3c2-7up880LSq_GR2R2gHgFh-deSSzU1iarbcdugLaESGcqvjMRyapl2TOyOQIBljwtLYi3BXNtR_Vk4_1pCb-Te6yFhcri2d-mI7atWcCffn3S7i0j0tp6Z1ZyVq5yEipZ_GwvlSmnzWHCqS-ojV-6AwhSpAcDVfPtSRbvaJRRo0qXceCbEOK0wlnMOLd5gJqLzdHDJ";
-
   const bubbleClasses = isUser
-    ? "bg-primary-500 rounded-tr-none"
-    : "bg-neutral-800 rounded-tl-none";
+    ? "bg-primary-500 rounded-tr-none ml-auto"
+    : "bg-neutral-800 rounded-tl-none mr-auto";
 
-  const alignmentClasses = isUser ? "justify-end" : "items-start";
+  // Parse markdown-style formatting for better display
+  const formatMessage = (content: string) => {
+    // Convert **text** to bold
+    let formatted = content.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+    // Convert URLs to clickable links
+    formatted = formatted.replace(
+      /(https?:\/\/[^\s]+)/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 underline">$1</a>'
+    );
+
+    return formatted;
+  };
 
   return (
-    <div className={`flex items-start gap-3 ${alignmentClasses}`}>
-      {!isUser && (
-        <Image
-          alt="AI Assistant Avatar"
-          className="size-8 rounded-full"
-          src={avatarSrc}
-          width={32}
-          height={32}
-        />
-      )}
-      <div
-        className={`max-w-md rounded-xl px-4 py-3 text-base leading-normal font-normal text-white ${bubbleClasses}`}
-      >
-        {message.content}
+    <div
+      className={`flex w-full flex-col gap-3 ${isUser ? "items-end" : "items-start"}`}
+    >
+      {/* Message bubble */}
+      <div className="flex w-full">
+        <div
+          className={`max-w-3xl rounded-xl px-4 py-3 text-base leading-relaxed font-normal text-white ${bubbleClasses}`}
+        >
+          <div
+            className="whitespace-pre-wrap"
+            dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
+          />
+        </div>
       </div>
-      {isUser && (
-        <Image
-          alt="User Avatar"
-          className="size-8 rounded-full"
-          src={avatarSrc}
-          width={32}
-          height={32}
-        />
+
+      {/* Partner cards (only for assistant messages) */}
+      {!isUser && message.partners && message.partners.length > 0 && (
+        <div className="mt-4 w-full">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {message.partners.map(partner => (
+              <PartnerCard key={partner.id} partner={partner} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

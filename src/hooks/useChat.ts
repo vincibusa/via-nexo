@@ -35,7 +35,7 @@ export function useChat(): UseChatReturn {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [_, setCurrentSession] = useState<ChatSession | null>(null);
+  const [, setCurrentSession] = useState<ChatSession | null>(null);
 
   const lastUserMessageRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -82,23 +82,55 @@ export function useChat(): UseChatReturn {
       abortControllerRef.current = new AbortController();
 
       try {
-        // Simulate typing delay
-        await new Promise(resolve =>
-          setTimeout(resolve, CHAT_CONFIG.typingIndicatorMs)
-        );
+        // Use AI Chat API for conversational responses
+        const conversationHistory = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+        }));
 
-        // TODO: Replace with actual AI API call when backend is ready
-        // Simulate AI response for now
+        const response = await fetch("/api/chat/conversation", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            messages: [
+              ...conversationHistory,
+              {
+                role: "user",
+                content: content.trim(),
+              },
+            ],
+          }),
+          signal: abortControllerRef.current?.signal,
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error(
+              "Too many requests. Please wait a moment and try again."
+            );
+          }
+          throw new Error(`Chat request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.error || "Chat request failed");
+        }
+
         const assistantMessage: ChatMessage = {
           id: generateMessageId(),
           role: "assistant",
-          content: `Thank you for your message: "${content}". I'm here to help you discover amazing places in Italy! I can recommend hotels, restaurants, tours, and unique experiences. What type of recommendations are you looking for?`,
+          content: data.message,
           timestamp: new Date().toISOString(),
           metadata: {
             searchQuery: content,
-            partnersReturned: 0,
-            confidence: 0.85,
+            partnersReturned: data.partners?.length || 0,
+            confidence: 0.9,
           },
+          partners: data.partners || [],
         };
 
         setMessages(prev => [...prev, assistantMessage]);
@@ -120,7 +152,7 @@ export function useChat(): UseChatReturn {
         abortControllerRef.current = null;
       }
     },
-    [messages.length, status]
+    [messages, status]
   );
 
   const addMessage = useCallback((message: ChatMessage) => {
@@ -173,20 +205,23 @@ export function useChat(): UseChatReturn {
     clearChat();
   }, [clearChat]);
 
-  const loadSession = useCallback(async (_: string) => {
-    setStatus("loading");
+  const loadSession = useCallback(
+    async (/* sessionId: string */) => {
+      setStatus("loading");
 
-    try {
-      // TODO: Load session from storage/API when backend is ready
-      // For now, just simulate loading
-      await new Promise(resolve => setTimeout(resolve, 500));
+      try {
+        // TODO: Load session from storage/API when backend is ready
+        // For now, just simulate loading
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-      setStatus("success");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load session");
-      setStatus("error");
-    }
-  }, []);
+        setStatus("success");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load session");
+        setStatus("error");
+      }
+    },
+    []
+  );
 
   // Computed properties
   const isLoading = status === "loading" || isTyping;

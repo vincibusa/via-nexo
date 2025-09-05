@@ -111,6 +111,28 @@ export interface ChatMessage {
     partnersReturned?: number;
     confidence?: number;
   };
+  partners?: PartnerData[];
+}
+
+export interface PartnerData {
+  id: string;
+  name: string;
+  type: "hotel" | "restaurant" | "tour" | "shuttle";
+  description: string;
+  location: string;
+  price_range: string;
+  rating: number;
+  amenities?: string[];
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  images?: string[];
+  contact_info?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
 }
 
 export interface ChatSession {

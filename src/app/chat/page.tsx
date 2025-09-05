@@ -4,20 +4,23 @@
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { useChat } from "@/hooks/useChat";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function ChatPage() {
-  const { messages, sendMessage, isLoading } = useChat();
+  const { messages, sendMessage, isLoading, error, retryLastMessage } =
+    useChat();
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("query");
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
-    if (initialQuery && messages.length === 0) {
-      // Only send if no messages yet
+    if (initialQuery && messages.length === 0 && !hasInitialized.current) {
+      // Only send if no messages yet and not already initialized
+      hasInitialized.current = true;
       sendMessage(initialQuery);
     }
-  }, [initialQuery, sendMessage, messages.length]); // Add messages.length to dependencies
+  }, [initialQuery, sendMessage, messages.length]); // Keep dependencies for proper cleanup
 
   return (
     <Suspense fallback={<div>Loading chat...</div>}>
@@ -33,8 +36,18 @@ export default function ChatPage() {
             </p>
           </div>
           <div className="flex w-full max-w-4xl flex-1 flex-col">
-            <ChatMessages messages={messages} />
-            <ChatInput onSendMessage={sendMessage} isLoading={isLoading} />
+            <ChatMessages
+              messages={messages}
+              error={error}
+              onRetry={retryLastMessage}
+              isLoading={isLoading}
+            />
+            <ChatInput
+              onSendMessage={sendMessage}
+              isLoading={isLoading}
+              error={error}
+              onRetry={retryLastMessage}
+            />
           </div>
         </main>
       </div>

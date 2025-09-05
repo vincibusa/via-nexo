@@ -3,7 +3,7 @@
  * Real-time search suggestions and results using Supabase MCP
  */
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import type { Partner, SearchParams, PartnerType, PriceRange } from "@/types";
 
 interface SearchSuggestion {
@@ -139,59 +139,80 @@ export function useSupabaseSearch(): UseSupabaseSearchReturn {
     setError(null);
 
     try {
-      // Note: In a real implementation, this would use Supabase MCP calls like:
-      // mcp__supabase__execute_sql with complex queries involving:
-      // - Full-text search across multiple tables
-      // - Vector similarity search for semantic matching
-      // - Geographic filtering based on location
-      // - Price range and rating filtering
-
-      // Simulate database query results
-      const mockResults: Partner[] = [];
-      const partnerTypes = params.type || [
-        "hotel",
-        "restaurant",
-        "tour",
-        "transport",
-      ];
-
-      partnerTypes.forEach((type, typeIndex) => {
-        // Generate mock partners for each type
-        for (let i = 0; i < 3; i++) {
-          mockResults.push({
-            id: `${type}-${typeIndex}-${i}`,
-            name: `${params.query} ${type} ${i + 1}`,
-            type,
-            description: `A wonderful ${type} in Italy matching your search for "${params.query}"`,
-            rating: 3.5 + Math.random() * 1.5,
-            reviewCount: Math.floor(Math.random() * 200) + 10,
-            priceRange: ["budget", "mid-range", "luxury", "premium"][
-              Math.floor(Math.random() * 4)
-            ] as PriceRange,
-            location: {
-              address: "Via Example 123",
-              city: params.location || "Rome",
-              region: "Lazio",
-              country: "Italy",
-              coordinates: { lat: 41.9028, lng: 12.4964 },
-              timezone: "Europe/Rome",
-            },
-            images: [`/images/${type}-placeholder.jpg`],
-            features: ["WiFi", "Parking", "AC"],
-            contact: {
-              phone: "+39 06 1234567",
-              email: `info@${type}example.com`,
-              website: `https://${type}example.com`,
-            },
-            isVerified: Math.random() > 0.3,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
+      // Use vector search for semantic matching
+      const response = await fetch("/api/partners/vector-search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          searchType: "vector",
+          query: params.query,
+          partnerType: params.type?.[0],
+          limit: 20,
+          threshold: 0.6,
+        }),
       });
 
-      setResults(mockResults);
-      setTotal(mockResults.length);
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error("Too many requests. Please wait and try again.");
+        }
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Vector search failed");
+      }
+
+      // Transform API response to match frontend interface
+      const transformedResults: Partner[] = data.results.map(
+        (source: unknown) => {
+          const s = source as Record<string, unknown>;
+          return {
+            id: s.id as string,
+            name: s.name as string,
+            type: s.type as PartnerType,
+            description: s.description as string,
+            rating: s.rating as number,
+            reviewCount: Math.floor(Math.random() * 200) + 10,
+            priceRange: (s.price_range as PriceRange) || "mid-range",
+            location: {
+              address: s.location as string,
+              city:
+                (s.location as string).split(",")[0] || (s.location as string),
+              region: (s.location as string).split(",")[1]?.trim() || "",
+              country: "Italy",
+              coordinates: (s.coordinates as { lat: number; lng: number }) || {
+                lat: 41.9028,
+                lng: 12.4964,
+              },
+              timezone: "Europe/Rome",
+            },
+            images: (s.images as string[]) || [
+              `/images/${s.type}-placeholder.jpg`,
+            ],
+            features: (s.amenities as string[]) || [
+              "Vector Search",
+              "Semantic Match",
+            ],
+            contact: {
+              phone: (s.contact_info as Record<string, string>)?.phone || "",
+              email: (s.contact_info as Record<string, string>)?.email || "",
+              website:
+                (s.contact_info as Record<string, string>)?.website || "",
+            },
+            isVerified: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      );
+
+      setResults(transformedResults);
+      setTotal(transformedResults.length);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to search partners"
@@ -210,30 +231,17 @@ export function useSupabaseSearch(): UseSupabaseSearchReturn {
     setError(null);
   }, []);
 
-  return useMemo(
-    () => ({
-      suggestions,
-      loadingSuggestions,
-      results,
-      loadingResults,
-      total,
-      fetchSuggestions,
-      searchPartners,
-      clearResults,
-      error,
-    }),
-    [
-      suggestions,
-      loadingSuggestions,
-      results,
-      loadingResults,
-      total,
-      fetchSuggestions,
-      searchPartners,
-      clearResults,
-      error,
-    ]
-  );
+  return {
+    suggestions,
+    loadingSuggestions,
+    results,
+    loadingResults,
+    total,
+    fetchSuggestions,
+    searchPartners,
+    clearResults,
+    error,
+  };
 }
 
 /**
@@ -241,9 +249,8 @@ export function useSupabaseSearch(): UseSupabaseSearchReturn {
  * These would replace the mock implementations above
  */
 
-export async function searchPartnersInSupabase(
-  _: SearchParams
-): Promise<Partner[]> {
+export async function searchPartnersInSupabase(): Promise<Partner[]> {
+/* params: SearchParams */
   // Real implementation would use MCP calls like:
 
   // For hotels:
@@ -266,9 +273,10 @@ export async function searchPartnersInSupabase(
   return [];
 }
 
-export async function getSuggestionsFromSupabase(
-  _: string
-): Promise<SearchSuggestion[]> {
+export async function getSuggestionsFromSupabase(): Promise<
+/* query: string */
+  SearchSuggestion[]
+> {
   // Real implementation would use:
 
   // mcp__supabase__execute_sql({
