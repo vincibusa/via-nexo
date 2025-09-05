@@ -145,7 +145,7 @@ export async function vectorSearch(
       `[VECTOR_SEARCH] Final results - returning ${mappedResults.length} partners`
     );
     console.log(
-      `[VECTOR_SEARCH] Partner names: [${mappedResults.map(p => p.name).join(", ")}]`
+      `[VECTOR_SEARCH] Partner names: [${mappedResults.map((p: Partner) => p.name).join(", ")}]`
     );
 
     return mappedResults;
