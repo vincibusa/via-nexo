@@ -1,0 +1,868 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import Image from "next/image";
+import { Search, Filter, MapPin, Clock, Euro, Star, X } from "lucide-react";
+import { useTraditionalSearch } from "@/hooks/useTraditionalSearch";
+
+export const SearchResults = () => {
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("relevance");
+  const [priceRange, setPriceRange] = useState([1, 5]);
+  const [selectedPartnerTypes, setSelectedPartnerTypes] = useState<string[]>(
+    []
+  );
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedCuisineTypes, setSelectedCuisineTypes] = useState<string[]>(
+    []
+  );
+  const [selectedTourTypes, setSelectedTourTypes] = useState<string[]>([]);
+  const [selectedServiceTypes, setSelectedServiceTypes] = useState<string[]>(
+    []
+  );
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState({
+    destination: "",
+    duration: "",
+    budget: "",
+    type: "",
+  });
+
+  // Traditional search hook
+  const {
+    results: partners,
+    loading,
+    total,
+    availableLocations,
+    availableCuisineTypes,
+    availableTourTypes,
+    availableServiceTypes,
+    loadingOptions,
+    searchPartners,
+    loadFilterOptions,
+    error,
+  } = useTraditionalSearch();
+
+  // Debounced search hook
+  const useDebounce = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
+  };
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Load filter options on mount
+  useEffect(() => {
+    loadFilterOptions();
+  }, [loadFilterOptions]);
+
+  // Perform search when filters change
+  useEffect(() => {
+    const performSearch = async () => {
+      // Get URL params
+      const destination = searchParams.get("destination") || "";
+      const duration = searchParams.get("duration") || "";
+      const budget = searchParams.get("budget") || "";
+      const type = searchParams.get("type") || "";
+
+      setCurrentFilters({ destination, duration, budget, type });
+
+      // Build search filters
+      const filters = {
+        query: debouncedSearchQuery,
+        partnerTypes:
+          selectedPartnerTypes.length > 0
+            ? selectedPartnerTypes
+            : type
+              ? [mapLegacyTypeToPartnerType(type)]
+              : [],
+        priceRange: priceRange as [number, number],
+        locations:
+          selectedLocations.length > 0
+            ? selectedLocations
+            : destination
+              ? [destination]
+              : [],
+        cuisineTypes: selectedCuisineTypes,
+        tourTypes: selectedTourTypes,
+        serviceTypes: selectedServiceTypes,
+        sortBy,
+      };
+
+      await searchPartners(filters);
+    };
+
+    performSearch();
+  }, [
+    searchParams,
+    debouncedSearchQuery,
+    priceRange,
+    selectedPartnerTypes,
+    selectedLocations,
+    selectedCuisineTypes,
+    selectedTourTypes,
+    selectedServiceTypes,
+    sortBy,
+    searchPartners,
+  ]);
+
+  // Helper function to map legacy types to partner types
+  const mapLegacyTypeToPartnerType = (legacyType: string): string => {
+    const mapping: Record<string, string> = {
+      family: "hotel",
+      romantic: "hotel",
+      culture: "tour",
+      adventure: "tour",
+      business: "hotel",
+      relaxation: "hotel",
+    };
+    return mapping[legacyType] || "hotel";
+  };
+
+  const getPartnerTypeLabel = (type: string) => {
+    const labels = {
+      hotel: "Hotels",
+      restaurant: "Ristoranti",
+      tour: "Tour",
+      shuttle: "Trasporti",
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
+
+  const getPriceRangeLabel = (range: number) => {
+    const labels = {
+      1: "€",
+      2: "€€",
+      3: "€€€",
+      4: "€€€€",
+      5: "€€€€€",
+    };
+    return labels[range as keyof typeof labels] || "€€";
+  };
+
+  const getBudgetLabel = (budget: string) => {
+    const labels = {
+      low: "€ Economico",
+      mid: "€€ Medio",
+      high: "€€€ Alto",
+      luxury: "€€€€ Lusso",
+    };
+    return labels[budget as keyof typeof labels] || budget;
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels = {
+      romantic: "Romantico",
+      family: "Famiglia",
+      business: "Business",
+      adventure: "Avventura",
+      culture: "Culturale",
+      relaxation: "Relax",
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
+
+  // Filter handlers
+  const handleSortChange = (value: string) => {
+    setSortBy(value);
+  };
+
+  const handlePartnerTypeChange = (type: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPartnerTypes(prev => [...prev, type]);
+    } else {
+      setSelectedPartnerTypes(prev => prev.filter(t => t !== type));
+    }
+  };
+
+  const handleLocationChange = (location: string, checked: boolean) => {
+    if (checked) {
+      setSelectedLocations(prev => [...prev, location]);
+    } else {
+      setSelectedLocations(prev => prev.filter(l => l !== location));
+    }
+  };
+
+  const handleCuisineTypeChange = (cuisine: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCuisineTypes(prev => [...prev, cuisine]);
+    } else {
+      setSelectedCuisineTypes(prev => prev.filter(c => c !== cuisine));
+    }
+  };
+
+  const handleTourTypeChange = (tourType: string, checked: boolean) => {
+    if (checked) {
+      setSelectedTourTypes(prev => [...prev, tourType]);
+    } else {
+      setSelectedTourTypes(prev => prev.filter(t => t !== tourType));
+    }
+  };
+
+  const handleServiceTypeChange = (serviceType: string, checked: boolean) => {
+    if (checked) {
+      setSelectedServiceTypes(prev => [...prev, serviceType]);
+    } else {
+      setSelectedServiceTypes(prev => prev.filter(s => s !== serviceType));
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setPriceRange([1, 5]);
+    setSelectedPartnerTypes([]);
+    setSelectedLocations([]);
+    setSelectedCuisineTypes([]);
+    setSelectedTourTypes([]);
+    setSelectedServiceTypes([]);
+    setSortBy("relevance");
+  };
+
+  const removeFilter = (filterType: string, value?: string) => {
+    switch (filterType) {
+      case "search":
+        setSearchQuery("");
+        break;
+      case "price":
+        setPriceRange([1, 5]);
+        break;
+      case "partnerType":
+        if (value)
+          setSelectedPartnerTypes(prev => prev.filter(t => t !== value));
+        break;
+      case "location":
+        if (value) setSelectedLocations(prev => prev.filter(l => l !== value));
+        break;
+      case "cuisineType":
+        if (value)
+          setSelectedCuisineTypes(prev => prev.filter(c => c !== value));
+        break;
+      case "tourType":
+        if (value) setSelectedTourTypes(prev => prev.filter(t => t !== value));
+        break;
+      case "serviceType":
+        if (value)
+          setSelectedServiceTypes(prev => prev.filter(s => s !== value));
+        break;
+    }
+  };
+
+  const renderStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`h-4 w-4 ${
+          i < Math.floor(rating)
+            ? "fill-yellow-400 text-yellow-400"
+            : "text-neutral-600"
+        }`}
+      />
+    ));
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
+      {/* Top Search Bar */}
+      <div className="sticky top-0 z-10 border-b border-neutral-700 bg-neutral-900/90 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex flex-col items-center gap-4 lg:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-neutral-400" />
+              <Input
+                placeholder="Cerca destinazioni, hotel, attività..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="focus:border-primary-500 border-neutral-600 bg-neutral-800 pl-10 text-white placeholder:text-neutral-400"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Select value={sortBy} onValueChange={handleSortChange}>
+                <SelectTrigger className="w-40 border-neutral-600 bg-neutral-800 text-white">
+                  <SelectValue placeholder="Ordina per" />
+                </SelectTrigger>
+                <SelectContent className="border-neutral-600 bg-neutral-800">
+                  <SelectItem value="relevance">Rilevanza</SelectItem>
+                  <SelectItem value="name-asc">Nome A-Z</SelectItem>
+                  <SelectItem value="name-desc">Nome Z-A</SelectItem>
+                  <SelectItem value="price-low">Prezzo ↗</SelectItem>
+                  <SelectItem value="price-high">Prezzo ↘</SelectItem>
+                  <SelectItem value="rating">Valutazione</SelectItem>
+                  <SelectItem value="recent">Più recenti</SelectItem>
+                </SelectContent>
+              </Select>
+              <Sheet
+                open={isFilterSheetOpen}
+                onOpenChange={setIsFilterSheetOpen}
+              >
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-neutral-600 bg-neutral-800 text-white hover:bg-neutral-700 lg:hidden"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent
+                  side="right"
+                  className="w-80 border-neutral-700 bg-neutral-900"
+                >
+                  <SheetHeader>
+                    <SheetTitle className="text-white">
+                      Filtra risultati
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="py-6">
+                    {/* Mobile Filters - Same as sidebar */}
+                    {/* Partner Type Filter */}
+                    <div className="mb-6">
+                      <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                        Tipo di Partner
+                      </h4>
+                      <div className="space-y-2">
+                        {[
+                          { value: "hotel", label: "Hotels" },
+                          { value: "restaurant", label: "Ristoranti" },
+                          { value: "tour", label: "Tour" },
+                          { value: "shuttle", label: "Trasporti" },
+                        ].map(type => (
+                          <label
+                            key={type.value}
+                            className="flex items-center gap-2 text-sm text-neutral-300"
+                          >
+                            <input
+                              type="checkbox"
+                              className="rounded border-neutral-600 bg-neutral-800"
+                              checked={selectedPartnerTypes.includes(
+                                type.value
+                              )}
+                              onChange={e =>
+                                handlePartnerTypeChange(
+                                  type.value,
+                                  e.target.checked
+                                )
+                              }
+                            />
+                            {type.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price Range */}
+                    <div className="mb-6">
+                      <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                        Fascia di prezzo
+                      </h4>
+                      <div className="px-3">
+                        <Slider
+                          value={priceRange}
+                          onValueChange={setPriceRange}
+                          min={1}
+                          max={5}
+                          step={1}
+                          className="mb-3"
+                        />
+                        <div className="flex justify-between text-sm text-neutral-400">
+                          <span>{getPriceRangeLabel(priceRange[0])}</span>
+                          <span>{getPriceRangeLabel(priceRange[1])}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    <div className="pt-4">
+                      <Button
+                        onClick={clearAllFilters}
+                        variant="outline"
+                        className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+                      >
+                        Rimuovi tutti i filtri
+                      </Button>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto flex gap-6 px-6 py-6">
+        {/* Left Sidebar Filters */}
+        <div className="hidden w-80 lg:block">
+          <Card className="sticky top-24 border-neutral-700 bg-neutral-900/50 p-6">
+            <h3 className="mb-4 text-lg font-semibold text-white">
+              Filtra risultati
+            </h3>
+
+            {/* Current Filters */}
+            {(currentFilters.destination ||
+              currentFilters.duration ||
+              currentFilters.budget ||
+              currentFilters.type) && (
+              <div className="mb-6">
+                <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                  Filtri attivi
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {currentFilters.destination && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-primary-500/20 text-primary-300"
+                    >
+                      <MapPin className="mr-1 h-3 w-3" />
+                      {currentFilters.destination}
+                    </Badge>
+                  )}
+                  {selectedPartnerTypes.length > 0 &&
+                    selectedPartnerTypes.map(type => (
+                      <Badge
+                        key={type}
+                        variant="secondary"
+                        className="bg-blue-500/20 text-blue-300"
+                      >
+                        <Clock className="mr-1 h-3 w-3" />
+                        {getPartnerTypeLabel(type)}
+                        <button
+                          onClick={() => removeFilter("partnerType", type)}
+                          className="ml-1 rounded hover:bg-blue-600/20"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  {currentFilters.budget && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-green-500/20 text-green-300"
+                    >
+                      <Euro className="mr-1 h-3 w-3" />
+                      {getBudgetLabel(currentFilters.budget)}
+                    </Badge>
+                  )}
+                  {currentFilters.type && (
+                    <Badge
+                      variant="secondary"
+                      className="bg-purple-500/20 text-purple-300"
+                    >
+                      {getTypeLabel(currentFilters.type)}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Price Range */}
+            <div className="mb-6">
+              <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                Fascia di prezzo
+              </h4>
+              <div className="px-3">
+                <Slider
+                  value={priceRange}
+                  onValueChange={setPriceRange}
+                  min={1}
+                  max={5}
+                  step={1}
+                  className="mb-3"
+                />
+                <div className="flex justify-between text-sm text-neutral-400">
+                  <span>{getPriceRangeLabel(priceRange[0])}</span>
+                  <span>{getPriceRangeLabel(priceRange[1])}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Partner Type Filter */}
+            <div className="mb-6">
+              <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                Tipo di Partner
+              </h4>
+              <div className="space-y-2">
+                {[
+                  { value: "hotel", label: "Hotels" },
+                  { value: "restaurant", label: "Ristoranti" },
+                  { value: "tour", label: "Tour" },
+                  { value: "shuttle", label: "Trasporti" },
+                ].map(type => (
+                  <label
+                    key={type.value}
+                    className="flex items-center gap-2 text-sm text-neutral-300"
+                  >
+                    <input
+                      type="checkbox"
+                      className="rounded border-neutral-600 bg-neutral-800"
+                      checked={selectedPartnerTypes.includes(type.value)}
+                      onChange={e =>
+                        handlePartnerTypeChange(type.value, e.target.checked)
+                      }
+                    />
+                    {type.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Locations Filter */}
+            <div className="mb-6">
+              <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                Località
+              </h4>
+              <div className="max-h-32 space-y-2 overflow-y-auto">
+                {availableLocations.slice(0, 8).map(location => (
+                  <label
+                    key={location}
+                    className="flex items-center gap-2 text-sm text-neutral-300"
+                  >
+                    <input
+                      type="checkbox"
+                      className="rounded border-neutral-600 bg-neutral-800"
+                      checked={selectedLocations.includes(location)}
+                      onChange={e =>
+                        handleLocationChange(location, e.target.checked)
+                      }
+                    />
+                    {location}
+                  </label>
+                ))}
+                {loadingOptions && (
+                  <div className="text-sm text-neutral-400">Caricamento...</div>
+                )}
+              </div>
+            </div>
+
+            {/* Cuisine Types Filter (for restaurants) */}
+            {selectedPartnerTypes.includes("restaurant") && (
+              <div className="mb-6">
+                <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                  Tipo di Cucina
+                </h4>
+                <div className="max-h-32 space-y-2 overflow-y-auto">
+                  {availableCuisineTypes.slice(0, 6).map(cuisine => (
+                    <label
+                      key={cuisine}
+                      className="flex items-center gap-2 text-sm text-neutral-300"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-neutral-600 bg-neutral-800"
+                        checked={selectedCuisineTypes.includes(cuisine)}
+                        onChange={e =>
+                          handleCuisineTypeChange(cuisine, e.target.checked)
+                        }
+                      />
+                      {cuisine}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Tour Types Filter (for tours) */}
+            {selectedPartnerTypes.includes("tour") && (
+              <div className="mb-6">
+                <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                  Tipo di Tour
+                </h4>
+                <div className="max-h-32 space-y-2 overflow-y-auto">
+                  {availableTourTypes.slice(0, 6).map(tourType => (
+                    <label
+                      key={tourType}
+                      className="flex items-center gap-2 text-sm text-neutral-300"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-neutral-600 bg-neutral-800"
+                        checked={selectedTourTypes.includes(tourType)}
+                        onChange={e =>
+                          handleTourTypeChange(tourType, e.target.checked)
+                        }
+                      />
+                      {tourType}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Service Types Filter (for shuttles) */}
+            {selectedPartnerTypes.includes("shuttle") && (
+              <div className="mb-6">
+                <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                  Tipo di Servizio
+                </h4>
+                <div className="max-h-32 space-y-2 overflow-y-auto">
+                  {availableServiceTypes.slice(0, 6).map(serviceType => (
+                    <label
+                      key={serviceType}
+                      className="flex items-center gap-2 text-sm text-neutral-300"
+                    >
+                      <input
+                        type="checkbox"
+                        className="rounded border-neutral-600 bg-neutral-800"
+                        checked={selectedServiceTypes.includes(serviceType)}
+                        onChange={e =>
+                          handleServiceTypeChange(serviceType, e.target.checked)
+                        }
+                      />
+                      {serviceType}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Clear All Filters Button */}
+            <div className="border-t border-neutral-700 pt-4">
+              <Button
+                onClick={clearAllFilters}
+                variant="outline"
+                className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+              >
+                Rimuovi tutti i filtri
+              </Button>
+            </div>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1">
+          {/* Results Header */}
+          <div className="mb-6">
+            <h1 className="mb-2 text-2xl font-bold text-white">
+              {loading ? "Ricerca in corso..." : `Trovati ${total} partner`}
+            </h1>
+            <p className="text-neutral-400">
+              {searchQuery
+                ? `Risultati per "${searchQuery}"`
+                : "I migliori partner per il tuo viaggio"}
+            </p>
+            {error && (
+              <div className="mt-2 text-sm text-red-400">Errore: {error}</div>
+            )}
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Card
+                  key={i}
+                  className="overflow-hidden border-neutral-700 bg-neutral-900/50"
+                >
+                  <div className="flex animate-pulse">
+                    <div className="h-48 w-80 bg-neutral-700"></div>
+                    <div className="flex-1 p-6">
+                      <div className="mb-2 h-6 rounded bg-neutral-700"></div>
+                      <div className="mb-4 h-4 w-1/2 rounded bg-neutral-700"></div>
+                      <div className="mb-4 h-12 rounded bg-neutral-700"></div>
+                      <div className="flex gap-2">
+                        <div className="h-6 w-20 rounded bg-neutral-700"></div>
+                        <div className="h-6 w-20 rounded bg-neutral-700"></div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Results List */}
+          {!loading && (
+            <div className="space-y-4">
+              {partners.map(partner => (
+                <Card
+                  key={partner.id}
+                  className="overflow-hidden border-neutral-700 bg-neutral-900/50 transition-all duration-300 hover:bg-neutral-900/70"
+                >
+                  <div className="flex">
+                    {/* Image */}
+                    <div className="relative h-48 w-80 flex-shrink-0">
+                      <Image
+                        src={
+                          partner.images[0] ||
+                          `/images/${partner.type}-placeholder.jpg`
+                        }
+                        alt={partner.name}
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="bg-primary-500 absolute top-3 right-3 rounded-lg px-3 py-1 text-sm font-semibold text-white">
+                        {getPriceRangeLabel(
+                          partner.priceRange === "budget"
+                            ? 1
+                            : partner.priceRange === "mid-range"
+                              ? 2
+                              : partner.priceRange === "luxury"
+                                ? 3
+                                : partner.priceRange === "premium"
+                                  ? 4
+                                  : 2
+                        )}
+                      </div>
+                      <div className="absolute top-3 left-3 rounded bg-neutral-900/80 px-2 py-1 text-xs text-white">
+                        {getPartnerTypeLabel(partner.type)}
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 p-6">
+                      <div className="mb-3 flex items-start justify-between">
+                        <div>
+                          <h3 className="mb-1 text-xl font-bold text-white">
+                            {partner.name}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-neutral-400">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-4 w-4" />
+                              {partner.location.city}
+                            </div>
+                            {partner.contact.phone && (
+                              <span>{partner.contact.phone}</span>
+                            )}
+                            {partner.isVerified && (
+                              <Badge
+                                variant="outline"
+                                className="border-green-600 bg-green-900/20 text-xs text-green-400"
+                              >
+                                Verificato
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Rating */}
+                        {partner.rating && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex gap-1">
+                              {renderStars(partner.rating)}
+                            </div>
+                            <span className="font-medium text-white">
+                              {partner.rating.toFixed(1)}
+                            </span>
+                            <span className="text-sm text-neutral-400">
+                              ({partner.reviewCount} recensioni)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="mb-4 line-clamp-2 text-sm text-neutral-300">
+                        {partner.description}
+                      </p>
+
+                      {/* Features */}
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        {partner.features.slice(0, 4).map((feature, index) => (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            className="border-neutral-600 bg-neutral-800/50 text-neutral-300"
+                          >
+                            {feature}
+                          </Badge>
+                        ))}
+                        {partner.features.length > 4 && (
+                          <Badge
+                            variant="outline"
+                            className="border-neutral-600 bg-neutral-800/50 text-neutral-400"
+                          >
+                            +{partner.features.length - 4} altro
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-neutral-600 text-white hover:bg-neutral-800"
+                        >
+                          Vedi dettagli
+                        </Button>
+                        {partner.contact.website && (
+                          <Button
+                            size="sm"
+                            className="bg-primary-500 hover:bg-primary-600 text-white"
+                            onClick={() =>
+                              window.open(partner.contact.website, "_blank")
+                            }
+                          >
+                            Visita sito
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {!loading && partners.length === 0 && (
+            <div className="py-12 text-center">
+              <div className="mb-4 text-6xl">🔍</div>
+              <h3 className="mb-2 text-xl font-bold text-white">
+                Nessun partner trovato
+              </h3>
+              <p className="mb-6 text-neutral-400">
+                {searchQuery
+                  ? `Nessun risultato per "${searchQuery}". Prova con una ricerca diversa.`
+                  : "Prova a modificare i filtri di ricerca o cerca una destinazione diversa."}
+              </p>
+              <div className="flex justify-center gap-3">
+                <Button
+                  onClick={clearAllFilters}
+                  variant="outline"
+                  className="border-neutral-600 text-white hover:bg-neutral-800"
+                >
+                  Rimuovi filtri
+                </Button>
+                <Button
+                  onClick={() => window.history.back()}
+                  className="bg-primary-500 hover:bg-primary-600 text-white"
+                >
+                  Torna alla ricerca
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

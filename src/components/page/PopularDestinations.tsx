@@ -1,5 +1,8 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 const destinations = [
   {
@@ -29,6 +32,12 @@ const destinations = [
 ];
 
 export const PopularDestinations = () => {
+  const router = useRouter();
+
+  const handleDestinationClick = (destination: string) => {
+    router.push(`/search?destination=${encodeURIComponent(destination)}`);
+  };
+
   return (
     <section className="container mx-auto w-full px-6 pb-24">
       <h3 className="text-2xl font-bold text-white">Popular Destinations</h3>
@@ -36,7 +45,8 @@ export const PopularDestinations = () => {
         {destinations.map(dest => (
           <Card
             key={dest.name}
-            className="group relative h-80 overflow-hidden rounded-2xl border-none"
+            className="group relative h-80 cursor-pointer overflow-hidden rounded-2xl border-none transition-transform duration-300 hover:scale-105"
+            onClick={() => handleDestinationClick(dest.name)}
           >
             <Image
               alt={dest.name}
@@ -49,6 +59,7 @@ export const PopularDestinations = () => {
               <h4 className="text-xl font-bold text-white">{dest.name}</h4>
               <p className="text-sm text-neutral-300">{dest.country}</p>
             </div>
+            <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
           </Card>
         ))}
       </div>
