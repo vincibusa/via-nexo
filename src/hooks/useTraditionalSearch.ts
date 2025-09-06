@@ -96,8 +96,9 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply text search
           if (hasTextSearch) {
+            const escapedQuery = searchQuery.replace(/[%\\]/g, "\\$&");
             hotelQuery = hotelQuery.or(
-              `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%`
+              `name.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location.ilike.%${escapedQuery}%`
             );
           }
 
@@ -181,8 +182,9 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply text search
           if (hasTextSearch) {
+            const escapedQuery = searchQuery.replace(/[%\\]/g, "\\$&");
             restaurantQuery = restaurantQuery.or(
-              `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%,cuisine_type.ilike.%${searchQuery}%`
+              `name.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location.ilike.%${escapedQuery}%,cuisine_type.ilike.%${escapedQuery}%`
             );
           }
 
@@ -196,9 +198,13 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply cuisine filter
           if (filters.cuisineTypes && filters.cuisineTypes.length > 0) {
+            // Normalize cuisine types to lowercase for database query
+            const normalizedCuisineTypes = filters.cuisineTypes.map(type =>
+              type.toLowerCase()
+            );
             restaurantQuery = restaurantQuery.in(
               "cuisine_type",
-              filters.cuisineTypes
+              normalizedCuisineTypes
             );
           }
 
@@ -258,11 +264,16 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
           }
         }
 
-        // Search Tours
-        if (
-          filters.partnerTypes.length === 0 ||
-          filters.partnerTypes.includes("tour")
-        ) {
+        // Search Tours - only if tour is explicitly selected or no partner types specified
+        // and there are relevant filters (search query, locations, or tour types)
+        const shouldSearchTours =
+          (filters.partnerTypes.length === 0 ||
+            filters.partnerTypes.includes("tour")) &&
+          (hasTextSearch ||
+            filters.locations.length > 0 ||
+            (filters.tourTypes && filters.tourTypes.length > 0));
+
+        if (shouldSearchTours) {
           let tourQuery = supabaseClient
             .from("tours")
             .select(
@@ -271,15 +282,16 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
             country, tour_type, duration_hours, duration_days,
             price_adult, phone, email, website, booking_url,
             primary_image_url, gallery_urls, includes,
-            created_at, updated_at, coordinates
+            created_at, updated_at
           `
             )
             .eq("is_active", true);
 
           // Apply text search
           if (hasTextSearch) {
+            const escapedQuery = searchQuery.replace(/[%\\]/g, "\\$&");
             tourQuery = tourQuery.or(
-              `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,location.ilike.%${searchQuery}%,tour_type.ilike.%${searchQuery}%`
+              `name.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,location.ilike.%${escapedQuery}%,tour_type.ilike.%${escapedQuery}%`
             );
           }
 
@@ -293,13 +305,19 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply tour type filter
           if (filters.tourTypes && filters.tourTypes.length > 0) {
-            tourQuery = tourQuery.in("tour_type", filters.tourTypes);
+            // Normalize tour types to lowercase for database query
+            const normalizedTourTypes = filters.tourTypes.map(type =>
+              type.toLowerCase()
+            );
+            tourQuery = tourQuery.in("tour_type", normalizedTourTypes);
           }
 
           const { data: tours, error: tourError } = await tourQuery.limit(25);
 
           if (tourError) {
             console.error("Tour search error:", tourError);
+            console.error("Tour query filters:", filters.tourTypes);
+            console.error("Tour query details:", tourQuery);
           } else if (tours) {
             allResults.push(
               ...tours.map(tour => ({
@@ -317,7 +335,7 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
                   city: extractCity(tour.location),
                   region: extractRegion(tour.location),
                   country: tour.country || "Italy",
-                  coordinates: tour.coordinates || {
+                  coordinates: {
                     lat: 41.9028,
                     lng: 12.4964,
                   },
@@ -371,8 +389,9 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply text search
           if (hasTextSearch) {
+            const escapedQuery = searchQuery.replace(/[%\\]/g, "\\$&");
             shuttleQuery = shuttleQuery.or(
-              `name.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,departure_location.ilike.%${searchQuery}%,arrival_location.ilike.%${searchQuery}%,service_type.ilike.%${searchQuery}%`
+              `name.ilike.%${escapedQuery}%,description.ilike.%${escapedQuery}%,departure_location.ilike.%${escapedQuery}%,arrival_location.ilike.%${escapedQuery}%,service_type.ilike.%${escapedQuery}%`
             );
           }
 
@@ -389,9 +408,13 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
           // Apply service type filter
           if (filters.serviceTypes && filters.serviceTypes.length > 0) {
+            // Normalize service types to lowercase for database query
+            const normalizedServiceTypes = filters.serviceTypes.map(type =>
+              type.toLowerCase()
+            );
             shuttleQuery = shuttleQuery.in(
               "service_type",
-              filters.serviceTypes
+              normalizedServiceTypes
             );
           }
 
@@ -526,7 +549,7 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
           .not("location", "is", null),
         supabaseClient
           .from("shuttles")
-          .select("departure_location as location")
+          .select("departure_location")
           .eq("is_active", true)
           .not("departure_location", "is", null),
       ];
@@ -536,7 +559,7 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
 
       const locationSet = new Set<string>();
 
-      [hotelLocs, restaurantLocs, tourLocs, shuttleLocs].forEach(result => {
+      [hotelLocs, restaurantLocs, tourLocs].forEach(result => {
         if (result.status === "fulfilled" && result.value.data) {
           result.value.data.forEach((item: { location?: string }) => {
             if (item.location) {
@@ -548,6 +571,20 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
           });
         }
       });
+
+      // Handle shuttle locations separately since they use departure_location
+      if (shuttleLocs.status === "fulfilled" && shuttleLocs.value.data) {
+        shuttleLocs.value.data.forEach(
+          (item: { departure_location?: string }) => {
+            if (item.departure_location) {
+              const city = extractCity(item.departure_location);
+              if (city && city.length > 1) {
+                locationSet.add(city);
+              }
+            }
+          }
+        );
+      }
 
       setAvailableLocations(Array.from(locationSet).sort().slice(0, 20));
 

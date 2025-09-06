@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,23 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Image from "next/image";
-import { Search, Filter, MapPin, Clock, Euro, Star, X } from "lucide-react";
+import {
+  Search,
+  Filter,
+  MapPin,
+  Clock,
+  Euro,
+  Star,
+  X,
+  Sparkles,
+} from "lucide-react";
 import { useTraditionalSearch } from "@/hooks/useTraditionalSearch";
+import { AIAssistantModal } from "@/components/search/AIAssistantModal";
+import { FilterSuggestions } from "@/lib/ai-filter-extractor";
 
 export const SearchResults = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("relevance");
   const [priceRange, setPriceRange] = useState([1, 5]);
@@ -42,12 +54,23 @@ export const SearchResults = () => {
     []
   );
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [currentFilters, setCurrentFilters] = useState({
     destination: "",
     duration: "",
     budget: "",
     type: "",
   });
+  const [urlUpdateQueue, setUrlUpdateQueue] = useState<{
+    search?: string;
+    partnerTypes?: string[];
+    locations?: string[];
+    priceRange?: [number, number];
+    cuisineTypes?: string[];
+    tourTypes?: string[];
+    serviceTypes?: string[];
+    sortBy?: string;
+  } | null>(null);
 
   // Traditional search hook
   const {
@@ -88,32 +111,68 @@ export const SearchResults = () => {
     loadFilterOptions();
   }, [loadFilterOptions]);
 
+  // Initialize filter states from URL parameters on mount
+  useEffect(() => {
+    // Get URL params
+    const searchQueryFromURL = searchParams.get("q") || "";
+    const partnerTypesFromURL =
+      searchParams.get("types")?.split(",").filter(Boolean) || [];
+    const locationsFromURL =
+      searchParams.get("locations")?.split(",").filter(Boolean) || [];
+    const priceMinFromURL = parseInt(searchParams.get("price_min") || "1");
+    const priceMaxFromURL = parseInt(searchParams.get("price_max") || "5");
+    const sortByFromURL = searchParams.get("sort") || "relevance";
+    const destination = searchParams.get("destination") || "";
+    const duration = searchParams.get("duration") || "";
+    const budget = searchParams.get("budget") || "";
+    const type = searchParams.get("type") || "";
+
+    // Set initial states from URL
+    setSearchQuery(searchQueryFromURL);
+    setSelectedPartnerTypes(partnerTypesFromURL);
+    setSelectedLocations(locationsFromURL);
+    setPriceRange([priceMinFromURL, priceMaxFromURL]);
+    setSortBy(sortByFromURL);
+    setCurrentFilters({ destination, duration, budget, type });
+
+    // Map legacy parameters to new filter states if new parameters are not present
+    if (locationsFromURL.length === 0 && destination) {
+      setSelectedLocations([destination]);
+    }
+
+    if (partnerTypesFromURL.length === 0 && type) {
+      setSelectedPartnerTypes([mapLegacyTypeToPartnerType(type)]);
+    }
+
+    if (priceMinFromURL === 1 && priceMaxFromURL === 5 && budget) {
+      const priceRangeMap: Record<string, [number, number]> = {
+        low: [1, 2],
+        mid: [2, 3],
+        high: [3, 4],
+        luxury: [4, 5],
+      };
+      setPriceRange(priceRangeMap[budget] || [1, 5]);
+    }
+  }, [searchParams]);
+
   // Perform search when filters change
   useEffect(() => {
     const performSearch = async () => {
-      // Get URL params
-      const destination = searchParams.get("destination") || "";
-      const duration = searchParams.get("duration") || "";
-      const budget = searchParams.get("budget") || "";
-      const type = searchParams.get("type") || "";
-
-      setCurrentFilters({ destination, duration, budget, type });
-
       // Build search filters
       const filters = {
         query: debouncedSearchQuery,
         partnerTypes:
           selectedPartnerTypes.length > 0
             ? selectedPartnerTypes
-            : type
-              ? [mapLegacyTypeToPartnerType(type)]
+            : currentFilters.type
+              ? [mapLegacyTypeToPartnerType(currentFilters.type)]
               : [],
         priceRange: priceRange as [number, number],
         locations:
           selectedLocations.length > 0
             ? selectedLocations
-            : destination
-              ? [destination]
+            : currentFilters.destination
+              ? [currentFilters.destination]
               : [],
         cuisineTypes: selectedCuisineTypes,
         tourTypes: selectedTourTypes,
@@ -136,6 +195,8 @@ export const SearchResults = () => {
     selectedServiceTypes,
     sortBy,
     searchPartners,
+    currentFilters.destination,
+    currentFilters.type,
   ]);
 
   // Helper function to map legacy types to partner types
@@ -194,49 +255,133 @@ export const SearchResults = () => {
     return labels[type as keyof typeof labels] || type;
   };
 
+  // Function to queue URL parameter updates
+  const updateURLParams = (filters: {
+    search?: string;
+    partnerTypes?: string[];
+    locations?: string[];
+    priceRange?: [number, number];
+    cuisineTypes?: string[];
+    tourTypes?: string[];
+    serviceTypes?: string[];
+    sortBy?: string;
+  }) => {
+    setUrlUpdateQueue(filters);
+  };
+
+  // Use effect to handle URL updates from queue
+  useEffect(() => {
+    if (urlUpdateQueue) {
+      const params = new URLSearchParams(searchParams.toString());
+      const filters = urlUpdateQueue;
+
+      // Update search query
+      if (filters.search !== undefined) {
+        if (filters.search) {
+          params.set("q", filters.search);
+        } else {
+          params.delete("q");
+        }
+      }
+
+      // Update partner types
+      if (filters.partnerTypes !== undefined) {
+        if (filters.partnerTypes.length > 0) {
+          params.set("types", filters.partnerTypes.join(","));
+        } else {
+          params.delete("types");
+        }
+      }
+
+      // Update locations
+      if (filters.locations !== undefined) {
+        if (filters.locations.length > 0) {
+          params.set("locations", filters.locations.join(","));
+        } else {
+          params.delete("locations");
+        }
+      }
+
+      // Update price range
+      if (filters.priceRange !== undefined) {
+        params.set("price_min", filters.priceRange[0].toString());
+        params.set("price_max", filters.priceRange[1].toString());
+      }
+
+      // Update sort by
+      if (filters.sortBy !== undefined) {
+        if (filters.sortBy && filters.sortBy !== "relevance") {
+          params.set("sort", filters.sortBy);
+        } else {
+          params.delete("sort");
+        }
+      }
+
+      // Update URL without page reload
+      router.replace(`/search?${params.toString()}`, { scroll: false });
+
+      // Clear the queue
+      setUrlUpdateQueue(null);
+    }
+  }, [urlUpdateQueue, router, searchParams]);
+
   // Filter handlers
   const handleSortChange = (value: string) => {
     setSortBy(value);
+    updateURLParams({ sortBy: value });
   };
 
   const handlePartnerTypeChange = (type: string, checked: boolean) => {
-    if (checked) {
-      setSelectedPartnerTypes(prev => [...prev, type]);
-    } else {
-      setSelectedPartnerTypes(prev => prev.filter(t => t !== type));
-    }
+    setSelectedPartnerTypes(prev => {
+      const newTypes = checked ? [...prev, type] : prev.filter(t => t !== type);
+      updateURLParams({ partnerTypes: newTypes });
+      return newTypes;
+    });
   };
 
   const handleLocationChange = (location: string, checked: boolean) => {
-    if (checked) {
-      setSelectedLocations(prev => [...prev, location]);
-    } else {
-      setSelectedLocations(prev => prev.filter(l => l !== location));
-    }
+    setSelectedLocations(prev => {
+      const newLocations = checked
+        ? [...prev, location]
+        : prev.filter(l => l !== location);
+      updateURLParams({ locations: newLocations });
+      return newLocations;
+    });
   };
 
   const handleCuisineTypeChange = (cuisine: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCuisineTypes(prev => [...prev, cuisine]);
-    } else {
-      setSelectedCuisineTypes(prev => prev.filter(c => c !== cuisine));
-    }
+    setSelectedCuisineTypes(prev => {
+      const newCuisines = checked
+        ? [...prev, cuisine]
+        : prev.filter(c => c !== cuisine);
+      updateURLParams({ cuisineTypes: newCuisines });
+      return newCuisines;
+    });
   };
 
   const handleTourTypeChange = (tourType: string, checked: boolean) => {
-    if (checked) {
-      setSelectedTourTypes(prev => [...prev, tourType]);
-    } else {
-      setSelectedTourTypes(prev => prev.filter(t => t !== tourType));
-    }
+    setSelectedTourTypes(prev => {
+      const newTourTypes = checked
+        ? [...prev, tourType]
+        : prev.filter(t => t !== tourType);
+      updateURLParams({ tourTypes: newTourTypes });
+      return newTourTypes;
+    });
   };
 
   const handleServiceTypeChange = (serviceType: string, checked: boolean) => {
-    if (checked) {
-      setSelectedServiceTypes(prev => [...prev, serviceType]);
-    } else {
-      setSelectedServiceTypes(prev => prev.filter(s => s !== serviceType));
-    }
+    setSelectedServiceTypes(prev => {
+      const newServiceTypes = checked
+        ? [...prev, serviceType]
+        : prev.filter(s => s !== serviceType);
+      updateURLParams({ serviceTypes: newServiceTypes });
+      return newServiceTypes;
+    });
+  };
+
+  const handlePriceRangeChange = (newRange: number[]) => {
+    setPriceRange(newRange as [number, number]);
+    updateURLParams({ priceRange: newRange as [number, number] });
   };
 
   const clearAllFilters = () => {
@@ -248,35 +393,111 @@ export const SearchResults = () => {
     setSelectedTourTypes([]);
     setSelectedServiceTypes([]);
     setSortBy("relevance");
+
+    // Clear all URL parameters
+    updateURLParams({
+      search: "",
+      partnerTypes: [],
+      locations: [],
+      priceRange: [1, 5],
+      cuisineTypes: [],
+      tourTypes: [],
+      serviceTypes: [],
+      sortBy: "relevance",
+    });
   };
 
   const removeFilter = (filterType: string, value?: string) => {
     switch (filterType) {
       case "search":
         setSearchQuery("");
+        updateURLParams({ search: "" });
         break;
       case "price":
         setPriceRange([1, 5]);
+        updateURLParams({ priceRange: [1, 5] });
         break;
       case "partnerType":
-        if (value)
-          setSelectedPartnerTypes(prev => prev.filter(t => t !== value));
+        if (value) {
+          setSelectedPartnerTypes(prev => {
+            const newTypes = prev.filter(t => t !== value);
+            updateURLParams({ partnerTypes: newTypes });
+            return newTypes;
+          });
+        }
         break;
       case "location":
-        if (value) setSelectedLocations(prev => prev.filter(l => l !== value));
+        if (value) {
+          setSelectedLocations(prev => {
+            const newLocations = prev.filter(l => l !== value);
+            updateURLParams({ locations: newLocations });
+            return newLocations;
+          });
+        }
         break;
       case "cuisineType":
-        if (value)
-          setSelectedCuisineTypes(prev => prev.filter(c => c !== value));
+        if (value) {
+          setSelectedCuisineTypes(prev => {
+            const newCuisines = prev.filter(c => c !== value);
+            updateURLParams({ cuisineTypes: newCuisines });
+            return newCuisines;
+          });
+        }
         break;
       case "tourType":
-        if (value) setSelectedTourTypes(prev => prev.filter(t => t !== value));
+        if (value) {
+          setSelectedTourTypes(prev => {
+            const newTourTypes = prev.filter(t => t !== value);
+            updateURLParams({ tourTypes: newTourTypes });
+            return newTourTypes;
+          });
+        }
         break;
       case "serviceType":
-        if (value)
-          setSelectedServiceTypes(prev => prev.filter(s => s !== value));
+        if (value) {
+          setSelectedServiceTypes(prev => {
+            const newServiceTypes = prev.filter(s => s !== value);
+            updateURLParams({ serviceTypes: newServiceTypes });
+            return newServiceTypes;
+          });
+        }
         break;
     }
+  };
+
+  const handleAISuggestions = (suggestions: FilterSuggestions) => {
+    if (suggestions.partnerTypes) {
+      setSelectedPartnerTypes(suggestions.partnerTypes);
+    }
+    if (suggestions.locations) {
+      setSelectedLocations(suggestions.locations);
+    }
+    if (suggestions.priceRange) {
+      setPriceRange(suggestions.priceRange);
+    }
+    if (suggestions.cuisineTypes) {
+      setSelectedCuisineTypes(suggestions.cuisineTypes);
+    }
+    if (suggestions.tourTypes) {
+      setSelectedTourTypes(suggestions.tourTypes);
+    }
+    if (suggestions.serviceTypes) {
+      setSelectedServiceTypes(suggestions.serviceTypes);
+    }
+    if (suggestions.searchQuery) {
+      setSearchQuery(suggestions.searchQuery);
+    }
+
+    // Update URL parameters with all AI suggestions
+    updateURLParams({
+      search: suggestions.searchQuery,
+      partnerTypes: suggestions.partnerTypes,
+      locations: suggestions.locations,
+      priceRange: suggestions.priceRange,
+      cuisineTypes: suggestions.cuisineTypes,
+      tourTypes: suggestions.tourTypes,
+      serviceTypes: suggestions.serviceTypes,
+    });
   };
 
   const renderStars = (rating: number) => {
@@ -303,11 +524,23 @@ export const SearchResults = () => {
               <Input
                 placeholder="Cerca destinazioni, hotel, attività..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={e => {
+                  setSearchQuery(e.target.value);
+                  updateURLParams({ search: e.target.value });
+                }}
                 className="focus:border-primary-500 border-neutral-600 bg-neutral-800 pl-10 text-white placeholder:text-neutral-400"
               />
             </div>
             <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setIsAIAssistantOpen(true)}
+                variant="outline"
+                className="border-purple-600 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-white"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                AI Assistant
+              </Button>
+
               <Select value={sortBy} onValueChange={handleSortChange}>
                 <SelectTrigger className="w-40 border-neutral-600 bg-neutral-800 text-white">
                   <SelectValue placeholder="Ordina per" />
@@ -389,7 +622,7 @@ export const SearchResults = () => {
                       <div className="px-3">
                         <Slider
                           value={priceRange}
-                          onValueChange={setPriceRange}
+                          onValueChange={handlePriceRangeChange}
                           min={1}
                           max={5}
                           step={1}
@@ -493,7 +726,7 @@ export const SearchResults = () => {
               <div className="px-3">
                 <Slider
                   value={priceRange}
-                  onValueChange={setPriceRange}
+                  onValueChange={handlePriceRangeChange}
                   min={1}
                   max={5}
                   step={1}
@@ -863,6 +1096,13 @@ export const SearchResults = () => {
           )}
         </div>
       </div>
+
+      {/* AI Assistant Modal */}
+      <AIAssistantModal
+        open={isAIAssistantOpen}
+        onOpenChange={setIsAIAssistantOpen}
+        onApplyFilters={handleAISuggestions}
+      />
     </div>
   );
 };
