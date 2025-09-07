@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { searchWithAgent } from "@/lib/agents";
+import { runAgentOrchestration } from "@/lib/agents/orchestrator";
 import { z } from "zod";
 
 const searchSchema = z.object({
@@ -69,18 +69,23 @@ export async function POST(request: NextRequest) {
     const { query, partnerType, location, priceRange, minRating } =
       validation.data;
 
-    // Perform intelligent search using OpenAI Agent
-    const result = await searchWithAgent({
+    // Build contextual query
+    const contextualQuery = [
       query,
-      partnerType,
-      location,
-      priceRange,
-      minRating,
-    });
+      partnerType ? `looking for ${partnerType}s` : "",
+      location ? `in ${location}` : "",
+      priceRange ? `with ${priceRange} price range` : "",
+      minRating ? `rating ${minRating}+` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    // Perform intelligent search using orchestrated agents
+    const result = await runAgentOrchestration(contextualQuery);
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error || "Search failed" },
+        { error: result.executionSummary || "Search failed" },
         { status: 500 }
       );
     }
@@ -88,9 +93,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: result.message,
-      data: result.data,
+      partners: result.partners,
+      agentResults: result.agentResults,
+      executionSummary: result.executionSummary,
       query: {
         original: query,
+        contextual: contextualQuery,
         filters: { partnerType, location, priceRange, minRating },
       },
     });

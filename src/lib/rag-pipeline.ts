@@ -1,7 +1,8 @@
 import { vectorSearch, searchPartners } from "./supabase-server";
 import { PartnerData } from "@/types";
 // import { generateEmbeddings } from './openai'
-import { searchWithAgent, chatWithAgent } from "./agents";
+import { chatWithAgent } from "./agents";
+import { runAgentOrchestration } from "./agents/orchestrator";
 import {
   embeddingsCache,
   searchCache,
@@ -314,17 +315,14 @@ export class RAGPipeline {
       }
     }
 
-    // Use search agent for single queries
-    const result = await searchWithAgent({
-      query: `${ragQuery.query}\n\nBased on these relevant partners:\n${context}`,
-      partnerType: ragQuery.partnerType,
-      location: ragQuery.location,
-    });
+    // Use orchestrated agents for single queries
+    const enhancedQuery = `${ragQuery.query}\n\nBased on these relevant partners:\n${context}`;
+    const result = await runAgentOrchestration(enhancedQuery);
 
     if (result.success) {
-      return { message: result.message, partners: [] };
+      return { message: result.message, partners: result.partners };
     } else {
-      throw new Error(result.error || "Search agent failed");
+      throw new Error(result.message || "Orchestrated search failed");
     }
   }
 
