@@ -1,3 +1,5 @@
+"use client";
+
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,34 +8,50 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, Compass, Plane, Users } from "lucide-react";
+import { Menu, Plane, Users, Search, MessageCircle } from "lucide-react";
 import { LogoIcon, NotificationIcon } from "./Icons";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 export const Header = () => {
+  const pathname = usePathname();
+
   const navLinks = [
-    { href: "#", label: "Explore", icon: Compass },
-    { href: "#", label: "Trips", icon: Plane },
-    { href: "#", label: "Community", icon: Users },
+    { href: "/search", label: "Explore", icon: Search },
+    { href: "/chat", label: "AI Chat", icon: MessageCircle },
+    { href: "/trips", label: "My Trips", icon: Plane },
+    { href: "/community", label: "Community", icon: Users },
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-neutral-900/50 backdrop-blur-md">
+    <header className="bg-primary sticky top-0 z-50 w-full backdrop-blur-md">
       <nav className="container mx-auto flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-8">
-          <a className="flex items-center gap-3 text-white" href="#">
+          <Link className="flex items-center gap-3 text-white" href="/">
             <LogoIcon className="text-primary-500 h-8 w-8" />
             <h1 className="text-2xl font-bold">Via Nexo</h1>
-          </a>
+          </Link>
           <div className="hidden items-center gap-8 md:flex">
-            {navLinks.map(link => (
-              <a
-                key={link.label}
-                className="hover:text-primary-400 text-sm font-medium text-neutral-200 transition-colors"
-                href={link.href}
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map(link => {
+              const isActive =
+                pathname === link.href ||
+                (link.href === "/search" && pathname.startsWith("/partner"));
+              return (
+                <Link
+                  key={link.label}
+                  className={cn(
+                    "text-sm font-medium transition-colors",
+                    isActive
+                      ? "text-primary-400"
+                      : "hover:text-primary-400 text-neutral-200"
+                  )}
+                  href={link.href}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
 
@@ -68,16 +86,32 @@ export const Header = () => {
             >
               <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
               <div className="flex flex-col gap-2 pt-6">
-                {navLinks.map(link => (
-                  <a
-                    key={link.label}
-                    className="hover:text-primary-400 flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-neutral-200 transition-colors hover:bg-neutral-800"
-                    href={link.href}
-                  >
-                    <link.icon className="text-primary-500 h-6 w-6" />
-                    <span>{link.label}</span>
-                  </a>
-                ))}
+                {navLinks.map(link => {
+                  const isActive =
+                    pathname === link.href ||
+                    (link.href === "/search" &&
+                      pathname.startsWith("/partner"));
+                  return (
+                    <Link
+                      key={link.label}
+                      className={cn(
+                        "flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium transition-colors hover:bg-neutral-800",
+                        isActive
+                          ? "text-primary-400 bg-neutral-800/50"
+                          : "hover:text-primary-400 text-neutral-200"
+                      )}
+                      href={link.href}
+                    >
+                      <link.icon
+                        className={cn(
+                          "h-6 w-6",
+                          isActive ? "text-primary-400" : "text-primary-500"
+                        )}
+                      />
+                      <span>{link.label}</span>
+                    </Link>
+                  );
+                })}
               </div>
             </SheetContent>
           </Sheet>

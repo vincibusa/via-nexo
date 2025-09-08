@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, MapPin, Star, Phone, Mail, Globe } from "lucide-react";
+import { Star, MapPin, ArrowLeft } from "lucide-react";
 import { PartnerData } from "@/types";
+import { NavigationBreadcrumb } from "@/components/page/NavigationBreadcrumb";
+import { BookingCTA } from "@/components/partner/BookingCTA";
 
 const PartnerTypeIcons = {
   hotel: "🏨",
@@ -110,6 +112,12 @@ export default function PartnerDetailPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
+      {/* Navigation Breadcrumb */}
+      <NavigationBreadcrumb
+        partnerName={partner.name}
+        partnerType={partner.type}
+      />
+
       {/* Header con back button */}
       <div className="container mx-auto px-4 py-6">
         <button
@@ -218,63 +226,9 @@ export default function PartnerDetailPage() {
             )}
           </div>
 
-          {/* Sidebar informazioni */}
+          {/* Sidebar with booking CTA */}
           <div className="lg:col-span-1">
-            <div className="sticky top-6">
-              {/* Prezzo */}
-              <div className="mb-6 rounded-xl border border-neutral-700 bg-neutral-800 p-6">
-                <h3 className="mb-2 text-lg font-bold">Fascia di prezzo</h3>
-                <div className="text-primary-400 text-xl font-medium">
-                  {partner.price_range === "budget"
-                    ? "💰 Budget"
-                    : partner.price_range === "mid-range"
-                      ? "💰💰 Mid-range"
-                      : partner.price_range === "luxury"
-                        ? "💰💰💰 Luxury"
-                        : partner.price_range === "premium"
-                          ? "💰💰💰💰 Premium"
-                          : partner.price_range}
-                </div>
-              </div>
-
-              {/* Contatti */}
-              {partner.contact_info && (
-                <div className="rounded-xl border border-neutral-700 bg-neutral-800 p-6">
-                  <h3 className="mb-4 text-lg font-bold">Contatti</h3>
-                  <div className="space-y-3">
-                    {partner.contact_info.phone && (
-                      <a
-                        href={`tel:${partner.contact_info.phone}`}
-                        className="flex items-center gap-3 rounded-lg bg-neutral-700 p-3 transition-colors hover:bg-neutral-600"
-                      >
-                        <Phone className="text-primary-400 h-5 w-5" />
-                        <span>{partner.contact_info.phone}</span>
-                      </a>
-                    )}
-                    {partner.contact_info.email && (
-                      <a
-                        href={`mailto:${partner.contact_info.email}`}
-                        className="flex items-center gap-3 rounded-lg bg-neutral-700 p-3 transition-colors hover:bg-neutral-600"
-                      >
-                        <Mail className="text-primary-400 h-5 w-5" />
-                        <span>{partner.contact_info.email}</span>
-                      </a>
-                    )}
-                    {partner.contact_info.website && (
-                      <a
-                        href={partner.contact_info.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 rounded-lg bg-neutral-700 p-3 transition-colors hover:bg-neutral-600"
-                      >
-                        <Globe className="text-primary-400 h-5 w-5" />
-                        <span>Sito web</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <BookingCTA partner={partner} />
           </div>
         </div>
       </div>

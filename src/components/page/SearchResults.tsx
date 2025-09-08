@@ -35,6 +35,15 @@ import {
 import { useTraditionalSearch } from "@/hooks/useTraditionalSearch";
 import { AIAssistantModal } from "@/components/search/AIAssistantModal";
 import { FilterSuggestions } from "@/lib/ai-filter-extractor";
+import {
+  FilterPresets,
+  type FilterPreset,
+} from "@/components/search/FilterPresets";
+import { SearchSuggestions } from "@/components/search/SearchSuggestions";
+import { MapView } from "@/components/search/MapView";
+import { ChevronDown, ChevronUp, Map, List } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const SearchResults = () => {
   const searchParams = useSearchParams();
@@ -55,6 +64,10 @@ export const SearchResults = () => {
   );
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [activePreset, setActivePreset] = useState<string | undefined>();
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [currentFilters, setCurrentFilters] = useState({
     destination: "",
     duration: "",
@@ -393,6 +406,7 @@ export const SearchResults = () => {
     setSelectedTourTypes([]);
     setSelectedServiceTypes([]);
     setSortBy("relevance");
+    setActivePreset(undefined);
 
     // Clear all URL parameters
     updateURLParams({
@@ -465,6 +479,48 @@ export const SearchResults = () => {
     }
   };
 
+  const handlePresetSelect = (preset: FilterPreset) => {
+    // Clear existing filters first
+    clearAllFilters();
+
+    // Apply preset filters
+    if (preset.filters.partnerTypes) {
+      setSelectedPartnerTypes(preset.filters.partnerTypes);
+    }
+    if (preset.filters.locations) {
+      setSelectedLocations(preset.filters.locations);
+    }
+    if (preset.filters.priceRange) {
+      setPriceRange(preset.filters.priceRange);
+    }
+    if (preset.filters.cuisineTypes) {
+      setSelectedCuisineTypes(preset.filters.cuisineTypes);
+    }
+    if (preset.filters.tourTypes) {
+      setSelectedTourTypes(preset.filters.tourTypes);
+    }
+    if (preset.filters.serviceTypes) {
+      setSelectedServiceTypes(preset.filters.serviceTypes);
+    }
+    if (preset.filters.searchQuery) {
+      setSearchQuery(preset.filters.searchQuery);
+    }
+
+    // Set active preset
+    setActivePreset(preset.id);
+
+    // Update URL parameters with preset filters
+    updateURLParams({
+      search: preset.filters.searchQuery,
+      partnerTypes: preset.filters.partnerTypes,
+      locations: preset.filters.locations,
+      priceRange: preset.filters.priceRange,
+      cuisineTypes: preset.filters.cuisineTypes,
+      tourTypes: preset.filters.tourTypes,
+      serviceTypes: preset.filters.serviceTypes,
+    });
+  };
+
   const handleAISuggestions = (suggestions: FilterSuggestions) => {
     if (suggestions.partnerTypes) {
       setSelectedPartnerTypes(suggestions.partnerTypes);
@@ -528,7 +584,27 @@ export const SearchResults = () => {
                   setSearchQuery(e.target.value);
                   updateURLParams({ search: e.target.value });
                 }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  // Delay hiding to allow suggestion clicks
+                  setTimeout(() => setShowSuggestions(false), 200);
+                }}
                 className="focus:border-primary-500 border-neutral-600 bg-neutral-800 pl-10 text-white placeholder:text-neutral-400"
+                aria-label="Campo di ricerca per destinazioni, hotel e attività"
+                aria-describedby="search-suggestions"
+                aria-expanded={showSuggestions}
+                aria-autocomplete="list"
+                role="combobox"
+              />
+
+              <SearchSuggestions
+                query={searchQuery}
+                onSuggestionSelect={suggestion => {
+                  setSearchQuery(suggestion);
+                  updateURLParams({ search: suggestion });
+                  setShowSuggestions(false);
+                }}
+                isVisible={showSuggestions}
               />
             </div>
             <div className="flex items-center gap-3">
@@ -555,6 +631,37 @@ export const SearchResults = () => {
                   <SelectItem value="recent">Più recenti</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center overflow-hidden rounded-md border border-neutral-600 bg-neutral-800">
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "min-h-[44px] rounded-none border-0 px-4",
+                    viewMode === "list"
+                      ? "bg-primary-600 text-white"
+                      : "bg-transparent text-neutral-300 hover:bg-neutral-700"
+                  )}
+                >
+                  <List className="mr-1 h-4 w-4" />
+                  Lista
+                </Button>
+                <Button
+                  variant={viewMode === "map" ? "default" : "ghost"}
+                  onClick={() => setViewMode("map")}
+                  className={cn(
+                    "min-h-[44px] rounded-none border-0 px-4",
+                    viewMode === "map"
+                      ? "bg-primary-600 text-white"
+                      : "bg-transparent text-neutral-300 hover:bg-neutral-700"
+                  )}
+                >
+                  <Map className="mr-1 h-4 w-4" />
+                  Mappa
+                </Button>
+              </div>
+
               <Sheet
                 open={isFilterSheetOpen}
                 onOpenChange={setIsFilterSheetOpen}
@@ -563,7 +670,7 @@ export const SearchResults = () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="border-neutral-600 bg-neutral-800 text-white hover:bg-neutral-700 lg:hidden"
+                    className="h-11 w-11 border-neutral-600 bg-neutral-800 text-white hover:bg-neutral-700 lg:hidden"
                   >
                     <Filter className="h-4 w-4" />
                   </Button>
@@ -578,6 +685,13 @@ export const SearchResults = () => {
                     </SheetTitle>
                   </SheetHeader>
                   <div className="py-6">
+                    {/* Filter Presets */}
+                    <FilterPresets
+                      onSelectPreset={handlePresetSelect}
+                      activePreset={activePreset}
+                      className="mb-6"
+                    />
+
                     {/* Mobile Filters - Same as sidebar */}
                     {/* Partner Type Filter */}
                     <div className="mb-6">
@@ -661,233 +775,269 @@ export const SearchResults = () => {
               Filtra risultati
             </h3>
 
-            {/* Current Filters */}
-            {(currentFilters.destination ||
-              currentFilters.duration ||
-              currentFilters.budget ||
-              currentFilters.type) && (
-              <div className="mb-6">
-                <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                  Filtri attivi
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {currentFilters.destination && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-primary-500/20 text-primary-300"
-                    >
-                      <MapPin className="mr-1 h-3 w-3" />
-                      {currentFilters.destination}
-                    </Badge>
-                  )}
-                  {selectedPartnerTypes.length > 0 &&
-                    selectedPartnerTypes.map(type => (
-                      <Badge
-                        key={type}
-                        variant="secondary"
-                        className="bg-blue-500/20 text-blue-300"
-                      >
-                        <Clock className="mr-1 h-3 w-3" />
-                        {getPartnerTypeLabel(type)}
-                        <button
-                          onClick={() => removeFilter("partnerType", type)}
-                          className="ml-1 rounded hover:bg-blue-600/20"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  {currentFilters.budget && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-green-500/20 text-green-300"
-                    >
-                      <Euro className="mr-1 h-3 w-3" />
-                      {getBudgetLabel(currentFilters.budget)}
-                    </Badge>
-                  )}
-                  {currentFilters.type && (
-                    <Badge
-                      variant="secondary"
-                      className="bg-purple-500/20 text-purple-300"
-                    >
-                      {getTypeLabel(currentFilters.type)}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Filter Presets */}
+            <FilterPresets
+              onSelectPreset={handlePresetSelect}
+              activePreset={activePreset}
+              className="mb-6"
+            />
 
-            {/* Price Range */}
-            <div className="mb-6">
-              <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                Fascia di prezzo
-              </h4>
-              <div className="px-3">
-                <Slider
-                  value={priceRange}
-                  onValueChange={handlePriceRangeChange}
-                  min={1}
-                  max={5}
-                  step={1}
-                  className="mb-3"
-                />
-                <div className="flex justify-between text-sm text-neutral-400">
-                  <span>{getPriceRangeLabel(priceRange[0])}</span>
-                  <span>{getPriceRangeLabel(priceRange[1])}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Partner Type Filter */}
-            <div className="mb-6">
-              <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                Tipo di Partner
-              </h4>
-              <div className="space-y-2">
-                {[
-                  { value: "hotel", label: "Hotels" },
-                  { value: "restaurant", label: "Ristoranti" },
-                  { value: "tour", label: "Tour" },
-                  { value: "shuttle", label: "Trasporti" },
-                ].map(type => (
-                  <label
-                    key={type.value}
-                    className="flex items-center gap-2 text-sm text-neutral-300"
-                  >
-                    <input
-                      type="checkbox"
-                      className="rounded border-neutral-600 bg-neutral-800"
-                      checked={selectedPartnerTypes.includes(type.value)}
-                      onChange={e =>
-                        handlePartnerTypeChange(type.value, e.target.checked)
-                      }
-                    />
-                    {type.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Locations Filter */}
-            <div className="mb-6">
-              <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                Località
-              </h4>
-              <div className="max-h-32 space-y-2 overflow-y-auto">
-                {availableLocations.slice(0, 8).map(location => (
-                  <label
-                    key={location}
-                    className="flex items-center gap-2 text-sm text-neutral-300"
-                  >
-                    <input
-                      type="checkbox"
-                      className="rounded border-neutral-600 bg-neutral-800"
-                      checked={selectedLocations.includes(location)}
-                      onChange={e =>
-                        handleLocationChange(location, e.target.checked)
-                      }
-                    />
-                    {location}
-                  </label>
-                ))}
-                {loadingOptions && (
-                  <div className="text-sm text-neutral-400">Caricamento...</div>
-                )}
-              </div>
-            </div>
-
-            {/* Cuisine Types Filter (for restaurants) */}
-            {selectedPartnerTypes.includes("restaurant") && (
-              <div className="mb-6">
-                <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                  Tipo di Cucina
-                </h4>
-                <div className="max-h-32 space-y-2 overflow-y-auto">
-                  {availableCuisineTypes.slice(0, 6).map(cuisine => (
-                    <label
-                      key={cuisine}
-                      className="flex items-center gap-2 text-sm text-neutral-300"
-                    >
-                      <input
-                        type="checkbox"
-                        className="rounded border-neutral-600 bg-neutral-800"
-                        checked={selectedCuisineTypes.includes(cuisine)}
-                        onChange={e =>
-                          handleCuisineTypeChange(cuisine, e.target.checked)
-                        }
-                      />
-                      {cuisine}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tour Types Filter (for tours) */}
-            {selectedPartnerTypes.includes("tour") && (
-              <div className="mb-6">
-                <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                  Tipo di Tour
-                </h4>
-                <div className="max-h-32 space-y-2 overflow-y-auto">
-                  {availableTourTypes.slice(0, 6).map(tourType => (
-                    <label
-                      key={tourType}
-                      className="flex items-center gap-2 text-sm text-neutral-300"
-                    >
-                      <input
-                        type="checkbox"
-                        className="rounded border-neutral-600 bg-neutral-800"
-                        checked={selectedTourTypes.includes(tourType)}
-                        onChange={e =>
-                          handleTourTypeChange(tourType, e.target.checked)
-                        }
-                      />
-                      {tourType}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Service Types Filter (for shuttles) */}
-            {selectedPartnerTypes.includes("shuttle") && (
-              <div className="mb-6">
-                <h4 className="mb-3 text-sm font-medium text-neutral-300">
-                  Tipo di Servizio
-                </h4>
-                <div className="max-h-32 space-y-2 overflow-y-auto">
-                  {availableServiceTypes.slice(0, 6).map(serviceType => (
-                    <label
-                      key={serviceType}
-                      className="flex items-center gap-2 text-sm text-neutral-300"
-                    >
-                      <input
-                        type="checkbox"
-                        className="rounded border-neutral-600 bg-neutral-800"
-                        checked={selectedServiceTypes.includes(serviceType)}
-                        onChange={e =>
-                          handleServiceTypeChange(serviceType, e.target.checked)
-                        }
-                      />
-                      {serviceType}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Clear All Filters Button */}
-            <div className="border-t border-neutral-700 pt-4">
+            {/* Advanced Filters Toggle */}
+            <div className="mb-4">
               <Button
-                onClick={clearAllFilters}
-                variant="outline"
-                className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+                variant="ghost"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="w-full justify-between p-0 text-neutral-300 hover:text-white"
               >
-                Rimuovi tutti i filtri
+                <span className="text-sm font-medium">Filtri avanzati</span>
+                {showAdvancedFilters ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
               </Button>
             </div>
+
+            {/* Advanced Filters Section */}
+            {showAdvancedFilters && (
+              <div className="space-y-6">
+                {/* Current Filters */}
+                {(currentFilters.destination ||
+                  currentFilters.duration ||
+                  currentFilters.budget ||
+                  currentFilters.type) && (
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                      Filtri attivi
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {currentFilters.destination && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-primary-500/20 text-primary-300"
+                        >
+                          <MapPin className="mr-1 h-3 w-3" />
+                          {currentFilters.destination}
+                        </Badge>
+                      )}
+                      {selectedPartnerTypes.length > 0 &&
+                        selectedPartnerTypes.map(type => (
+                          <Badge
+                            key={type}
+                            variant="secondary"
+                            className="bg-blue-500/20 text-blue-300"
+                          >
+                            <Clock className="mr-1 h-3 w-3" />
+                            {getPartnerTypeLabel(type)}
+                            <button
+                              onClick={() => removeFilter("partnerType", type)}
+                              className="ml-1 rounded hover:bg-blue-600/20"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      {currentFilters.budget && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-500/20 text-green-300"
+                        >
+                          <Euro className="mr-1 h-3 w-3" />
+                          {getBudgetLabel(currentFilters.budget)}
+                        </Badge>
+                      )}
+                      {currentFilters.type && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-purple-500/20 text-purple-300"
+                        >
+                          {getTypeLabel(currentFilters.type)}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Price Range */}
+                <div className="mb-6">
+                  <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                    Fascia di prezzo
+                  </h4>
+                  <div className="px-3">
+                    <Slider
+                      value={priceRange}
+                      onValueChange={handlePriceRangeChange}
+                      min={1}
+                      max={5}
+                      step={1}
+                      className="mb-3"
+                    />
+                    <div className="flex justify-between text-sm text-neutral-400">
+                      <span>{getPriceRangeLabel(priceRange[0])}</span>
+                      <span>{getPriceRangeLabel(priceRange[1])}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Partner Type Filter */}
+                <div className="mb-6">
+                  <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                    Tipo di Partner
+                  </h4>
+                  <div className="space-y-2">
+                    {[
+                      { value: "hotel", label: "Hotels" },
+                      { value: "restaurant", label: "Ristoranti" },
+                      { value: "tour", label: "Tour" },
+                      { value: "shuttle", label: "Trasporti" },
+                    ].map(type => (
+                      <label
+                        key={type.value}
+                        className="flex items-center gap-2 text-sm text-neutral-300"
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded border-neutral-600 bg-neutral-800"
+                          checked={selectedPartnerTypes.includes(type.value)}
+                          onChange={e =>
+                            handlePartnerTypeChange(
+                              type.value,
+                              e.target.checked
+                            )
+                          }
+                        />
+                        {type.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Locations Filter */}
+                <div className="mb-6">
+                  <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                    Località
+                  </h4>
+                  <div className="max-h-32 space-y-2 overflow-y-auto">
+                    {availableLocations.slice(0, 8).map(location => (
+                      <label
+                        key={location}
+                        className="flex items-center gap-2 text-sm text-neutral-300"
+                      >
+                        <input
+                          type="checkbox"
+                          className="rounded border-neutral-600 bg-neutral-800"
+                          checked={selectedLocations.includes(location)}
+                          onChange={e =>
+                            handleLocationChange(location, e.target.checked)
+                          }
+                        />
+                        {location}
+                      </label>
+                    ))}
+                    {loadingOptions && (
+                      <div className="text-sm text-neutral-400">
+                        Caricamento...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cuisine Types Filter (for restaurants) */}
+                {selectedPartnerTypes.includes("restaurant") && (
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                      Tipo di Cucina
+                    </h4>
+                    <div className="max-h-32 space-y-2 overflow-y-auto">
+                      {availableCuisineTypes.slice(0, 6).map(cuisine => (
+                        <label
+                          key={cuisine}
+                          className="flex items-center gap-2 text-sm text-neutral-300"
+                        >
+                          <input
+                            type="checkbox"
+                            className="rounded border-neutral-600 bg-neutral-800"
+                            checked={selectedCuisineTypes.includes(cuisine)}
+                            onChange={e =>
+                              handleCuisineTypeChange(cuisine, e.target.checked)
+                            }
+                          />
+                          {cuisine}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tour Types Filter (for tours) */}
+                {selectedPartnerTypes.includes("tour") && (
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                      Tipo di Tour
+                    </h4>
+                    <div className="max-h-32 space-y-2 overflow-y-auto">
+                      {availableTourTypes.slice(0, 6).map(tourType => (
+                        <label
+                          key={tourType}
+                          className="flex items-center gap-2 text-sm text-neutral-300"
+                        >
+                          <input
+                            type="checkbox"
+                            className="rounded border-neutral-600 bg-neutral-800"
+                            checked={selectedTourTypes.includes(tourType)}
+                            onChange={e =>
+                              handleTourTypeChange(tourType, e.target.checked)
+                            }
+                          />
+                          {tourType}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Service Types Filter (for shuttles) */}
+                {selectedPartnerTypes.includes("shuttle") && (
+                  <div className="mb-6">
+                    <h4 className="mb-3 text-sm font-medium text-neutral-300">
+                      Tipo di Servizio
+                    </h4>
+                    <div className="max-h-32 space-y-2 overflow-y-auto">
+                      {availableServiceTypes.slice(0, 6).map(serviceType => (
+                        <label
+                          key={serviceType}
+                          className="flex items-center gap-2 text-sm text-neutral-300"
+                        >
+                          <input
+                            type="checkbox"
+                            className="rounded border-neutral-600 bg-neutral-800"
+                            checked={selectedServiceTypes.includes(serviceType)}
+                            onChange={e =>
+                              handleServiceTypeChange(
+                                serviceType,
+                                e.target.checked
+                              )
+                            }
+                          />
+                          {serviceType}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clear All Filters Button */}
+                <div className="border-t border-neutral-700 pt-4">
+                  <Button
+                    onClick={clearAllFilters}
+                    variant="outline"
+                    className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+                  >
+                    Rimuovi tutti i filtri
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
@@ -916,15 +1066,54 @@ export const SearchResults = () => {
                   key={i}
                   className="overflow-hidden border-neutral-700 bg-neutral-900/50"
                 >
-                  <div className="flex animate-pulse">
-                    <div className="h-48 w-80 bg-neutral-700"></div>
-                    <div className="flex-1 p-6">
-                      <div className="mb-2 h-6 rounded bg-neutral-700"></div>
-                      <div className="mb-4 h-4 w-1/2 rounded bg-neutral-700"></div>
-                      <div className="mb-4 h-12 rounded bg-neutral-700"></div>
-                      <div className="flex gap-2">
-                        <div className="h-6 w-20 rounded bg-neutral-700"></div>
-                        <div className="h-6 w-20 rounded bg-neutral-700"></div>
+                  <div className="flex">
+                    {/* Image skeleton */}
+                    <div className="relative h-48 w-80 flex-shrink-0">
+                      <Skeleton className="h-full w-full" />
+                      <div className="absolute top-3 left-3">
+                        <Skeleton className="h-6 w-16" />
+                      </div>
+                      <div className="absolute top-3 right-3">
+                        <Skeleton className="h-8 w-12" />
+                      </div>
+                    </div>
+
+                    {/* Content skeleton */}
+                    <div className="flex-1 space-y-4 p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-6 w-3/4" />
+                          <div className="flex items-center gap-4">
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-5 w-16" />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex gap-1">
+                            {[...Array(5)].map((_, index) => (
+                              <Skeleton
+                                key={index}
+                                className="h-4 w-4 rounded-full"
+                              />
+                            ))}
+                          </div>
+                          <Skeleton className="h-4 w-8" />
+                        </div>
+                      </div>
+
+                      <Skeleton className="h-12 w-full" />
+
+                      <div className="flex flex-wrap gap-2">
+                        <Skeleton className="h-6 w-16" />
+                        <Skeleton className="h-6 w-20" />
+                        <Skeleton className="h-6 w-18" />
+                        <Skeleton className="h-6 w-14" />
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <Skeleton className="h-9 w-24" />
+                        <Skeleton className="h-9 w-20" />
                       </div>
                     </div>
                   </div>
@@ -933,8 +1122,37 @@ export const SearchResults = () => {
             </div>
           )}
 
+          {/* Results Content */}
+          {!loading && viewMode === "map" && (
+            <div className="h-[600px] overflow-hidden rounded-lg border border-neutral-700">
+              <MapView
+                partners={partners
+                  .filter(
+                    p =>
+                      p.type === "hotel" ||
+                      p.type === "restaurant" ||
+                      p.type === "tour" ||
+                      p.type === "transport"
+                  )
+                  .map(p => ({
+                    ...p,
+                    price_range: p.priceRange,
+                    location: p.location.city,
+                    type: p.type as "hotel" | "restaurant" | "tour" | "shuttle",
+                  }))}
+                selectedPartnerId={
+                  selectedPartnerTypes.length > 0 ? partners[0]?.id : undefined
+                }
+                onPartnerSelect={partnerId => {
+                  console.log("Selected partner:", partnerId);
+                  // You can add navigation to partner details here
+                }}
+              />
+            </div>
+          )}
+
           {/* Results List */}
-          {!loading && (
+          {!loading && viewMode === "list" && (
             <div className="space-y-4">
               {partners.map(partner => (
                 <Card
@@ -1068,7 +1286,9 @@ export const SearchResults = () => {
 
           {!loading && partners.length === 0 && (
             <div className="py-12 text-center">
-              <div className="mb-4 text-6xl">🔍</div>
+              <div className="mb-4 text-6xl">
+                {viewMode === "map" ? "🗺️" : "🔍"}
+              </div>
               <h3 className="mb-2 text-xl font-bold text-white">
                 Nessun partner trovato
               </h3>

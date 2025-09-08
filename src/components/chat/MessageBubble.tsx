@@ -1,5 +1,8 @@
 import { ChatMessage } from "@/types";
 import { PartnerCard } from "./PartnerCard";
+import { Clock, Copy, Check } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -7,10 +10,45 @@ interface MessageBubbleProps {
 
 export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
 
   const bubbleClasses = isUser
     ? "bg-primary-500 rounded-tr-none ml-auto"
     : "bg-neutral-800 rounded-tl-none mr-auto";
+
+  const formatTimestamp = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (diffMinutes < 1) {
+      return "Ora";
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes}m fa`;
+    } else if (diffMinutes < 1440) {
+      // 24 hours
+      const diffHours = Math.floor(diffMinutes / 60);
+      return `${diffHours}h fa`;
+    } else {
+      return date.toLocaleDateString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+    }
+  };
 
   // Parse markdown-style formatting for better display
   const formatMessage = (content: string) => {
@@ -28,10 +66,12 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
 
   return (
     <div
-      className={`flex w-full flex-col gap-3 ${isUser ? "items-end" : "items-start"}`}
+      className={`group flex w-full flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}
     >
       {/* Message bubble */}
-      <div className="flex w-full">
+      <div
+        className={`flex w-full items-start gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+      >
         <div
           className={`max-w-3xl rounded-xl px-4 py-3 text-base leading-relaxed font-normal text-white ${bubbleClasses}`}
         >
@@ -40,6 +80,33 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
           />
         </div>
+
+        {/* Action buttons */}
+        <div
+          className={`flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100 ${isUser ? "mr-2" : "ml-2"} mt-2`}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-neutral-700"
+            onClick={copyToClipboard}
+            title="Copia messaggio"
+          >
+            {copied ? (
+              <Check className="h-3 w-3 text-green-400" />
+            ) : (
+              <Copy className="h-3 w-3 text-neutral-400" />
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* Timestamp */}
+      <div
+        className={`flex items-center gap-1 text-xs text-neutral-500 ${isUser ? "mr-14" : "ml-14"}`}
+      >
+        <Clock className="h-3 w-3" />
+        <span>{formatTimestamp(message.timestamp)}</span>
       </div>
 
       {/* Partner cards (only for assistant messages) */}

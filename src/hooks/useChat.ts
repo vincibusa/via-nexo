@@ -3,9 +3,10 @@
  * Manages AI chat functionality for tourism recommendations
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { ChatMessage, ChatSession, Status } from "@/types";
 import { CHAT_CONFIG } from "@/constants";
+import { useChatPersistence } from "./useChatPersistence";
 
 interface UseChatReturn {
   // State
@@ -24,6 +25,9 @@ interface UseChatReturn {
   // Session management
   startNewSession: () => void;
   loadSession: (sessionId: string) => Promise<void>;
+  currentSessionId: string | null;
+  sessions: ChatSession[];
+  deleteSession: (sessionId: string) => void;
 
   // Computed
   isLoading: boolean;
@@ -35,10 +39,36 @@ export function useChat(): UseChatReturn {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
-  const [, setCurrentSession] = useState<ChatSession | null>(null);
 
   const lastUserMessageRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isLoadingSessionRef = useRef(false);
+
+  // Persistence hooks
+  const {
+    sessions,
+    currentSessionId,
+    loadSession: loadSessionFromStorage,
+    createNewSession,
+    deleteSession,
+    saveMessages,
+  } = useChatPersistence();
+
+  // Auto-save messages when they change (but not when loading a session)
+  useEffect(() => {
+    if (
+      currentSessionId &&
+      messages.length > 0 &&
+      !isLoadingSessionRef.current
+    ) {
+      // Use a timeout to debounce saves and prevent excessive localStorage writes
+      const timeoutId = setTimeout(() => {
+        saveMessages(currentSessionId, messages);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentSessionId, messages, saveMessages]);
 
   const generateMessageId = () =>
     `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -67,6 +97,12 @@ export function useChat(): UseChatReturn {
         content: content.trim(),
         timestamp: new Date().toISOString(),
       };
+
+      // Create new session if none exists
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        sessionId = createNewSession(userMessage);
+      }
 
       setMessages(prev => [...prev, userMessage]);
       setStatus("loading");
@@ -152,7 +188,7 @@ export function useChat(): UseChatReturn {
         abortControllerRef.current = null;
       }
     },
-    [messages, status]
+    [messages, status, currentSessionId, createNewSession]
   );
 
   const addMessage = useCallback((message: ChatMessage) => {
@@ -173,7 +209,6 @@ export function useChat(): UseChatReturn {
     setError(null);
     setStatus("idle");
     setIsTyping(false);
-    setCurrentSession(null);
     lastUserMessageRef.current = null;
   }, []);
 
@@ -193,34 +228,36 @@ export function useChat(): UseChatReturn {
   }, [sendMessage]);
 
   const startNewSession = useCallback(() => {
-    const newSession: ChatSession = {
-      id: `session_${Date.now()}`,
-      messages: [],
-      context: { query: "" },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    setCurrentSession(newSession);
-    clearChat();
-  }, [clearChat]);
+    const sessionId = createNewSession();
+    setMessages([]);
+    setError(null);
+    setStatus("idle");
+    setIsTyping(false);
+    lastUserMessageRef.current = null;
+    return sessionId;
+  }, [createNewSession]);
 
   const loadSession = useCallback(
-    async (/* sessionId: string */) => {
+    async (sessionId: string) => {
       setStatus("loading");
+      isLoadingSessionRef.current = true;
 
       try {
-        // TODO: Load session from storage/API when backend is ready
-        // For now, just simulate loading
-        await new Promise(resolve => setTimeout(resolve, 500));
-
+        const sessionMessages = loadSessionFromStorage(sessionId);
+        setMessages(sessionMessages);
+        setError(null);
         setStatus("success");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load session");
         setStatus("error");
+      } finally {
+        // Allow saving again after a brief delay
+        setTimeout(() => {
+          isLoadingSessionRef.current = false;
+        }, 100);
       }
     },
-    []
+    [loadSessionFromStorage]
   );
 
   // Computed properties
@@ -244,6 +281,9 @@ export function useChat(): UseChatReturn {
     // Session management
     startNewSession,
     loadSession,
+    currentSessionId,
+    sessions,
+    deleteSession,
 
     // Computed
     isLoading,

@@ -1,6 +1,7 @@
 import { ChatMessage } from "@/types";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
+import { ConversationStarters } from "./ConversationStarters";
 import { useEffect, useRef } from "react";
 
 interface ChatMessagesProps {
@@ -8,6 +9,7 @@ interface ChatMessagesProps {
   error?: string | null;
   onRetry?: () => void;
   isLoading?: boolean;
+  onSendMessage?: (message: string) => void;
 }
 
 export const ChatMessages = ({
@@ -15,6 +17,7 @@ export const ChatMessages = ({
   error,
   onRetry,
   isLoading,
+  onSendMessage,
 }: ChatMessagesProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +31,11 @@ export const ChatMessages = ({
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto scroll-smooth p-4">
+      {/* Show conversation starters if no messages */}
+      {messages.length === 0 && !isLoading && onSendMessage && (
+        <ConversationStarters onSelectStarter={onSendMessage} />
+      )}
+
       {messages.map(message => (
         <MessageBubble key={message.id} message={message} />
       ))}

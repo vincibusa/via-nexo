@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -12,8 +12,40 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "TravelApp - Esplora e Scopri",
-  description: "Find Your Next Adventure",
+  title: "Via Nexo - AI Travel Planning Platform",
+  description:
+    "Scopri il tuo prossimo viaggio con Via Nexo. Piattaforma AI per pianificare viaggi personalizzati con hotel, ristoranti, tour e trasporti selezionati.",
+  keywords: [
+    "travel",
+    "viaggio",
+    "AI",
+    "hotel",
+    "ristoranti",
+    "tour",
+    "Italia",
+    "pianificazione viaggi",
+  ],
+  authors: [{ name: "Via Nexo" }],
+  robots: "index, follow",
+  openGraph: {
+    type: "website",
+    locale: "it_IT",
+    url: "https://vianexo.com",
+    siteName: "Via Nexo",
+    title: "Via Nexo - AI Travel Planning Platform",
+    description:
+      "Pianifica il tuo viaggio perfetto con l'intelligenza artificiale. Hotel di lusso, ristoranti stellati, tour esclusivi.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Via Nexo - AI Travel Planning",
+    description: "Scopri il tuo prossimo viaggio con Via Nexo",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -31,7 +63,7 @@ export default function RootLayout({
       >
         <Header />
         <Suspense fallback={<div>Loading...</div>}>
-          <main className="-mt-20">{children}</main>
+          <main>{children}</main>
         </Suspense>
       </body>
     </html>

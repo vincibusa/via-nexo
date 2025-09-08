@@ -38,41 +38,83 @@ export const Hero = () => {
       <h2 className="text-4xl font-extrabold text-white md:text-6xl">
         Find Your Next Adventure
       </h2>
-      <p className="mt-4 max-w-2xl text-lg text-neutral-300">
-        {searchType === "ai"
-          ? "Descrivi il tuo viaggio ideale in dettaglio, e lascia che la nostra AI crei un itinerario personalizzato solo per te. Più dettagli fornisci, migliori saranno i suggerimenti!"
-          : "Usa i filtri per trovare rapidamente il viaggio perfetto. Seleziona destinazione, durata, budget e tipologia per risultati mirati."}
-      </p>
+      <div className="mt-4 max-w-2xl">
+        <p className="text-lg text-neutral-300">
+          {searchType === "ai"
+            ? "Descrivi il tuo viaggio ideale in linguaggio naturale, e lascia che la nostra AI crei un itinerario personalizzato."
+            : "Usa i filtri per trovare rapidamente il viaggio perfetto. Seleziona destinazione, durata e preferenze."}
+        </p>
+        {searchType === "ai" && (
+          <div className="mt-3 rounded-lg bg-neutral-800/30 p-3">
+            <p className="mb-2 text-sm text-neutral-400">Esempi di ricerca:</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "Un weekend romantico a Roma",
+                "Vacanza in famiglia a Sicilia 7 giorni",
+                "Viaggio d'affari a Milano con hotel 5 stelle",
+              ].map((example, index) => (
+                <button
+                  key={index}
+                  onClick={() => setQuery(example)}
+                  className="rounded-full bg-neutral-700/50 px-3 py-1 text-xs text-neutral-300 transition-colors hover:bg-neutral-600/50"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="mt-8 flex justify-center">
-        <div className="glass-light rounded-lg p-1">
-          <div className="flex items-center rounded-md bg-neutral-800/30 p-1">
-            <button
-              onClick={() => setSearchType("ai")}
-              className={`rounded-md px-6 py-2 text-sm font-medium transition-all duration-200 ${
-                searchType === "ai"
-                  ? "bg-primary-500 text-white shadow-lg"
-                  : "text-neutral-300 hover:bg-neutral-700/50 hover:text-white"
-              }`}
-            >
-              <div className="flex items-center gap-2">
+        <div className="glass-light rounded-xl p-2 shadow-lg">
+          <div className="flex gap-2 rounded-lg bg-neutral-800/40 p-1">
+            <label className="flex-1 cursor-pointer">
+              <input
+                type="radio"
+                name="searchType"
+                value="ai"
+                checked={searchType === "ai"}
+                onChange={() => setSearchType("ai")}
+                className="sr-only"
+              />
+              <div
+                className={`flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-300 ${
+                  searchType === "ai"
+                    ? "bg-primary-500 scale-105 transform text-white shadow-lg"
+                    : "text-neutral-300 hover:bg-neutral-700/50 hover:text-white"
+                }`}
+              >
                 <AiSearchIcon width={16} height={16} />
-                AI Search
+                <div className="text-center">
+                  <div className="font-semibold">AI Search</div>
+                  <div className="text-xs opacity-80">Linguaggio naturale</div>
+                </div>
               </div>
-            </button>
-            <button
-              onClick={() => setSearchType("traditional")}
-              className={`rounded-md px-6 py-2 text-sm font-medium transition-all duration-200 ${
-                searchType === "traditional"
-                  ? "bg-primary-500 text-white shadow-lg"
-                  : "text-neutral-300 hover:bg-neutral-700/50 hover:text-white"
-              }`}
-            >
-              <div className="flex items-center gap-2">
+            </label>
+            <label className="flex-1 cursor-pointer">
+              <input
+                type="radio"
+                name="searchType"
+                value="traditional"
+                checked={searchType === "traditional"}
+                onChange={() => setSearchType("traditional")}
+                className="sr-only"
+              />
+              <div
+                className={`flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-medium transition-all duration-300 ${
+                  searchType === "traditional"
+                    ? "bg-primary-500 scale-105 transform text-white shadow-lg"
+                    : "text-neutral-300 hover:bg-neutral-700/50 hover:text-white"
+                }`}
+              >
                 <SearchIcon width={16} height={16} />
-                Ricerca Classica
+                <div className="text-center">
+                  <div className="font-semibold">Ricerca Filtri</div>
+                  <div className="text-xs opacity-80">Selezione guidata</div>
+                </div>
               </div>
-            </button>
+            </label>
           </div>
         </div>
       </div>
@@ -88,7 +130,7 @@ export const Hero = () => {
                 <Textarea
                   ref={textareaRef}
                   className="focus:ring-primary-500/50 min-h-[2.75rem] w-full resize-none rounded-lg border-none bg-transparent py-3 pr-4 pl-12 text-neutral-100 placeholder-neutral-400 focus:ring-2 focus:outline-none"
-                  placeholder="Descrivi il tuo viaggio ideale... Es: 'Vorrei una luna di miele romantica a Roma per 4 giorni a novembre, con hotel di lusso e ristoranti stellati' (Shift+Enter per andare a capo)"
+                  placeholder="Descrivi il tuo viaggio perfetto..."
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}

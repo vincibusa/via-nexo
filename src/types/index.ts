@@ -137,6 +137,7 @@ export interface PartnerData {
 
 export interface ChatSession {
   id: string;
+  title: string;
   messages: ChatMessage[];
   context: SearchParams;
   createdAt: string;
