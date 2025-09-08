@@ -28,9 +28,9 @@ import { cn } from "@/lib/utils";
 interface ChatHistoryProps {
   sessions: ChatSession[];
   currentSessionId: string | null;
-  onLoadSession: (sessionId: string) => void;
-  onDeleteSession: (sessionId: string) => void;
-  onNewSession: () => void;
+  onLoadSession: (sessionId: string) => Promise<void>;
+  onDeleteSession: (sessionId: string) => Promise<void>;
+  onNewSession: () => Promise<string>;
 }
 
 export const ChatHistory: React.FC<ChatHistoryProps> = ({
@@ -76,22 +76,37 @@ export const ChatHistory: React.FC<ChatHistoryProps> = ({
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (sessionToDelete) {
-      onDeleteSession(sessionToDelete);
-      setSessionToDelete(null);
+      try {
+        await onDeleteSession(sessionToDelete);
+        setSessionToDelete(null);
+        setDeleteDialogOpen(false);
+      } catch (error) {
+        console.error("Failed to delete session:", error);
+        // Keep the dialog open on error so user can retry
+      }
     }
-    setDeleteDialogOpen(false);
   };
 
-  const handleLoadSession = (sessionId: string) => {
-    onLoadSession(sessionId);
-    setIsOpen(false);
+  const handleLoadSession = async (sessionId: string) => {
+    try {
+      await onLoadSession(sessionId);
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to load session:", error);
+      // Keep the sheet open on error so user can retry
+    }
   };
 
-  const handleNewSession = () => {
-    onNewSession();
-    setIsOpen(false);
+  const handleNewSession = async () => {
+    try {
+      await onNewSession();
+      setIsOpen(false);
+    } catch (error) {
+      console.error("Failed to create new session:", error);
+      // Keep the sheet open on error so user can retry
+    }
   };
 
   // Group sessions by date

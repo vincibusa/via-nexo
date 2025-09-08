@@ -290,3 +290,73 @@ export interface FeatureFlags {
   mapView: boolean;
   advancedSearch: boolean;
 }
+
+// ===== CHAT DATABASE TYPES =====
+
+export interface DatabaseConversation {
+  id: string;
+  title: string;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DatabaseConversationWithMessages {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+}
+
+export interface CreateConversationRequest {
+  title: string;
+}
+
+export interface UpdateConversationRequest {
+  title: string;
+}
+
+export interface CreateMessageRequest {
+  conversationId: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+// API Response types for chat endpoints
+export interface ConversationsListResponse {
+  success: boolean;
+  data: DatabaseConversation[];
+  total: number;
+}
+
+export interface ConversationDetailResponse {
+  success: boolean;
+  data: DatabaseConversationWithMessages;
+}
+
+export interface ConversationCreateResponse {
+  success: boolean;
+  data: DatabaseConversation;
+}
+
+export interface ConversationUpdateResponse {
+  success: boolean;
+  data: {
+    id: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+export interface MessageCreateResponse {
+  success: boolean;
+  data: ChatMessage;
+}
+
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+}

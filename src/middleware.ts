@@ -5,9 +5,16 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 // Paths that require authentication
-const protectedRoutes = ["/account", "/bookings", "/favorites", "/settings"];
+const protectedRoutes = [
+  "/chat",
+  "/account",
+  "/bookings",
+  "/favorites",
+  "/settings",
+];
 
 // Admin-only paths
 const adminRoutes = ["/admin", "/dashboard"];
@@ -65,9 +72,91 @@ function cleanupRateLimitStore() {
 // Cleanup rate limit store every 5 minutes
 setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const response = NextResponse.next();
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  // Create Supabase client for authentication
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value: "",
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  // Get user authentication status
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const cookies = request.cookies.getAll();
+  const supabaseCookies = cookies.filter(cookie =>
+    cookie.name.includes("supabase")
+  );
+  console.log(
+    `[MIDDLEWARE] Path: ${pathname}, User: ${user ? user.email : "not logged in"}, Total Cookies: ${cookies.length}, Supabase Cookies: ${supabaseCookies.map(c => c.name).join(", ")}`
+  );
+
+  // Get user profile for role checking
+  let userProfile = null;
+  if (user) {
+    try {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      userProfile = data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  }
+
+  const isAuthenticated = !!user;
+  const isAdmin = userProfile?.role === "admin";
 
   // Security headers
   response.headers.set("X-Frame-Options", "DENY");
@@ -126,25 +215,23 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/api/") ||
     pathname.includes(".") ||
-    pathname.startsWith("/favicon")
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register")
   ) {
     return response;
   }
 
-  // TODO: Implement authentication check when Auth is ready
-  // For now, we'll just check for a simple session cookie
-  // const session = request.cookies.get("session");
-  // const isAuthenticated = !!session?.value;
-
-  // Mock authentication for development
-  const isAuthenticated = false; // Will be replaced with real auth
-  const isAdmin = false; // Will be replaced with real role checking
+  // Authentication is now handled above via Supabase
 
   // Redirect to login for protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     if (!isAuthenticated) {
+      console.log(
+        `[MIDDLEWARE] Redirecting unauthenticated user to login from ${pathname}`
+      );
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirectTo", pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
@@ -153,7 +240,7 @@ export function middleware(request: NextRequest) {
   if (adminRoutes.some(route => pathname.startsWith(route))) {
     if (!isAuthenticated) {
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirectTo", pathname);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -165,8 +252,11 @@ export function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     if (isAuthenticated) {
-      const redirect = request.nextUrl.searchParams.get("redirect");
-      return NextResponse.redirect(new URL(redirect || "/", request.url));
+      console.log(
+        `[MIDDLEWARE] Redirecting authenticated user from ${pathname} to /chat`
+      );
+      const redirect = request.nextUrl.searchParams.get("redirectTo");
+      return NextResponse.redirect(new URL(redirect || "/chat", request.url));
     }
   }
 

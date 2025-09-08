@@ -1,6 +1,6 @@
 "use client";
 
-import { Avatar } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -8,21 +8,75 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Menu, Plane, Users, Search, MessageCircle } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Menu,
+  Plane,
+  Users,
+  Search,
+  MessageCircle,
+  LogIn,
+  UserPlus,
+  LogOut,
+  User,
+  Settings,
+} from "lucide-react";
 import { LogoIcon, NotificationIcon } from "./Icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const Header = () => {
   const pathname = usePathname();
+  const { user, userProfile, signOut } = useAuth();
 
-  const navLinks = [
+  // Filter navigation links based on authentication status
+  const allNavLinks = [
     { href: "/search", label: "Explore", icon: Search },
-    { href: "/chat", label: "AI Chat", icon: MessageCircle },
-    { href: "/trips", label: "My Trips", icon: Plane },
+    {
+      href: "/chat",
+      label: "AI Chat",
+      icon: MessageCircle,
+      authRequired: true,
+    },
+    { href: "/trips", label: "My Trips", icon: Plane, authRequired: true },
     { href: "/community", label: "Community", icon: Users },
   ];
+
+  const navLinks = user
+    ? allNavLinks
+    : allNavLinks.filter(link => !link.authRequired);
+
+  const handleSignOut = async () => {
+    console.log("[HEADER] Logout button clicked");
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("[HEADER] Error during logout:", error);
+    }
+  };
+
+  const getUserInitials = () => {
+    if (userProfile?.display_name) {
+      return userProfile.display_name
+        .split(" ")
+        .map(n => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return "U";
+  };
 
   return (
     <header className="bg-primary sticky top-0 z-50 w-full backdrop-blur-md">
@@ -57,18 +111,78 @@ export const Header = () => {
 
         {/* Desktop Icons */}
         <div className="hidden items-center gap-2 md:flex">
-          <Button variant="ghost" size="icon">
-            <NotificationIcon className="h-6 w-6 text-neutral-400" />
-          </Button>
-          <Avatar>
-            <div
-              className="h-10 w-10 rounded-full bg-cover bg-center"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBSDadV-FeA2f-DQZLW7TYz-rfu2diYCKw1QU4O0FVAeW4ViW8OfcALFpE_e3Hzo7nsW3sVw8csOHG2s5x84kLL6cIgKpPsImk3jEeqc2-Xh-xLWbMWkF2VlwKYzlKvIPeGVl1f8EYj0I87kwsXiCwIBqGwGa1aqMIKxFm5EPJh2vvKDy9usjCTaPJYoZWs0pLMfRKpaHE2PtF8WXM9p_QEBoHtI2Sw5A1RaQ2dEPkeov3fQflIOrAhpxXcG228z7-_KL8CdwcPhP6h")',
-              }}
-            />
-          </Avatar>
+          {user ? (
+            <>
+              <Button variant="ghost" size="icon">
+                <NotificationIcon className="h-6 w-6 text-neutral-400" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="relative h-10 w-10 rounded-full"
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={userProfile?.avatar_url}
+                        alt={userProfile?.display_name || user.email}
+                      />
+                      <AvatarFallback className="bg-primary-600 text-white">
+                        {getUserInitials()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <div className="flex flex-col space-y-1 leading-none">
+                      {userProfile?.display_name && (
+                        <p className="font-medium">
+                          {userProfile.display_name}
+                        </p>
+                      )}
+                      <p className="text-muted-foreground w-[200px] truncate text-sm">
+                        {user.email}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="flex items-center">
+                      <User className="mr-2 h-4 w-4" />
+                      Profilo
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/settings" className="flex items-center">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Impostazioni
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Esci
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" asChild className="text-neutral-200">
+                <Link href="/login">
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Accedi
+                </Link>
+              </Button>
+              <Button asChild className="bg-primary-600 hover:bg-primary-700">
+                <Link href="/register">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Registrati
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Mobile Menu Trigger */}
@@ -86,6 +200,7 @@ export const Header = () => {
             >
               <SheetTitle className="sr-only">Mobile Menu</SheetTitle>
               <div className="flex flex-col gap-2 pt-6">
+                {/* Navigation Links */}
                 {navLinks.map(link => {
                   const isActive =
                     pathname === link.href ||
@@ -112,6 +227,76 @@ export const Header = () => {
                     </Link>
                   );
                 })}
+
+                {/* Authentication Section */}
+                <div className="mt-6 border-t border-neutral-700 pt-6">
+                  {user ? (
+                    <>
+                      {/* User Info */}
+                      <div className="flex items-center gap-3 px-4 py-2">
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage
+                            src={userProfile?.avatar_url}
+                            alt={userProfile?.display_name || user.email}
+                          />
+                          <AvatarFallback className="bg-primary-600 text-white">
+                            {getUserInitials()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex flex-col">
+                          {userProfile?.display_name && (
+                            <p className="font-medium text-white">
+                              {userProfile.display_name}
+                            </p>
+                          )}
+                          <p className="truncate text-sm text-neutral-400">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* User Actions */}
+                      <Link
+                        href="/profile"
+                        className="hover:text-primary-400 flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-neutral-200 transition-colors hover:bg-neutral-800"
+                      >
+                        <User className="text-primary-500 h-6 w-6" />
+                        <span>Profilo</span>
+                      </Link>
+                      <Link
+                        href="/settings"
+                        className="hover:text-primary-400 flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-neutral-200 transition-colors hover:bg-neutral-800"
+                      >
+                        <Settings className="text-primary-500 h-6 w-6" />
+                        <span>Impostazioni</span>
+                      </Link>
+                      <button
+                        onClick={handleSignOut}
+                        className="hover:text-primary-400 flex w-full items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-neutral-200 transition-colors hover:bg-neutral-800"
+                      >
+                        <LogOut className="text-primary-500 h-6 w-6" />
+                        <span>Esci</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/login"
+                        className="hover:text-primary-400 flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-neutral-200 transition-colors hover:bg-neutral-800"
+                      >
+                        <LogIn className="text-primary-500 h-6 w-6" />
+                        <span>Accedi</span>
+                      </Link>
+                      <Link
+                        href="/register"
+                        className="bg-primary-600 hover:bg-primary-700 flex items-center gap-4 rounded-lg px-4 py-3 text-lg font-medium text-white transition-colors"
+                      >
+                        <UserPlus className="h-6 w-6" />
+                        <span>Registrati</span>
+                      </Link>
+                    </>
+                  )}
+                </div>
               </div>
             </SheetContent>
           </Sheet>

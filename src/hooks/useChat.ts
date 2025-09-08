@@ -6,7 +6,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { ChatMessage, ChatSession, Status } from "@/types";
 import { CHAT_CONFIG } from "@/constants";
-import { useChatPersistence } from "./useChatPersistence";
+import { useChatDatabasePersistence } from "./useChatDatabasePersistence";
 
 interface UseChatReturn {
   // State
@@ -23,11 +23,11 @@ interface UseChatReturn {
   retryLastMessage: () => Promise<void>;
 
   // Session management
-  startNewSession: () => void;
+  startNewSession: () => Promise<string>;
   loadSession: (sessionId: string) => Promise<void>;
   currentSessionId: string | null;
   sessions: ChatSession[];
-  deleteSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => Promise<void>;
 
   // Computed
   isLoading: boolean;
@@ -52,7 +52,7 @@ export function useChat(): UseChatReturn {
     createNewSession,
     deleteSession,
     saveMessages,
-  } = useChatPersistence();
+  } = useChatDatabasePersistence();
 
   // Auto-save messages when they change (but not when loading a session)
   useEffect(() => {
@@ -61,10 +61,14 @@ export function useChat(): UseChatReturn {
       messages.length > 0 &&
       !isLoadingSessionRef.current
     ) {
-      // Use a timeout to debounce saves and prevent excessive localStorage writes
-      const timeoutId = setTimeout(() => {
-        saveMessages(currentSessionId, messages);
-      }, 500);
+      // Use a timeout to debounce saves and prevent excessive database writes
+      const timeoutId = setTimeout(async () => {
+        try {
+          await saveMessages(currentSessionId, messages);
+        } catch (err) {
+          console.error("Failed to auto-save messages:", err);
+        }
+      }, 1000); // Increased timeout for database operations
 
       return () => clearTimeout(timeoutId);
     }
@@ -101,10 +105,12 @@ export function useChat(): UseChatReturn {
       // Create new session if none exists
       let sessionId = currentSessionId;
       if (!sessionId) {
-        sessionId = createNewSession(userMessage);
+        sessionId = await createNewSession(userMessage);
+        // Don't add the message again since createNewSession already adds it
+      } else {
+        // Only add the message if we're using an existing session
+        setMessages(prev => [...prev, userMessage]);
       }
-
-      setMessages(prev => [...prev, userMessage]);
       setStatus("loading");
       setError(null);
       setIsTyping(true);
@@ -227,8 +233,8 @@ export function useChat(): UseChatReturn {
     await sendMessage(lastUserMessageRef.current);
   }, [sendMessage]);
 
-  const startNewSession = useCallback(() => {
-    const sessionId = createNewSession();
+  const startNewSession = useCallback(async () => {
+    const sessionId = await createNewSession();
     setMessages([]);
     setError(null);
     setStatus("idle");
@@ -243,7 +249,7 @@ export function useChat(): UseChatReturn {
       isLoadingSessionRef.current = true;
 
       try {
-        const sessionMessages = loadSessionFromStorage(sessionId);
+        const sessionMessages = await loadSessionFromStorage(sessionId);
         setMessages(sessionMessages);
         setError(null);
         setStatus("success");

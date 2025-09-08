@@ -4,6 +4,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Header } from "@/components/page/Header";
+import { ClientAuthProvider } from "@/components/providers/AuthProvider";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -61,10 +62,12 @@ export default function RootLayout({
           jakarta.variable
         )}
       >
-        <Header />
-        <Suspense fallback={<div>Loading...</div>}>
-          <main>{children}</main>
-        </Suspense>
+        <ClientAuthProvider>
+          <Header />
+          <Suspense fallback={<div>Loading...</div>}>
+            <main>{children}</main>
+          </Suspense>
+        </ClientAuthProvider>
       </body>
     </html>
   );
