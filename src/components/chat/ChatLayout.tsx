@@ -54,7 +54,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
       {/* Fixed Sidebar */}
       <div
         className={cn(
-          "fixed top-20 left-0 z-30 flex h-screen flex-col border-r border-neutral-700 bg-neutral-900/95 transition-all duration-300",
+          "top-[] fixed left-0 z-30 flex h-screen flex-col border-r border-neutral-700 bg-neutral-900/95 transition-all duration-300",
           sidebarCollapsed ? "w-0" : "w-80"
         )}
       >
