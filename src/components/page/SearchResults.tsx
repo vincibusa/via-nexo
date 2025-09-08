@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -33,11 +33,15 @@ import {
   X,
   Sparkles,
 } from "lucide-react";
-import { useTraditionalSearch } from "@/hooks/useTraditionalSearch";
+import {
+  useTraditionalSearch,
+  type TraditionalSearchFilters,
+} from "@/hooks/useTraditionalSearch";
 import { AIAssistantModal } from "@/components/search/AIAssistantModal";
 import { FilterSuggestions } from "@/lib/ai-filter-extractor";
 import { SearchSuggestions } from "@/components/search/SearchSuggestions";
 import { MapView } from "@/components/search/MapView";
+import type { PartnerData } from "@/types";
 import { ChevronDown, ChevronUp, Map, List } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -99,6 +103,20 @@ export const SearchResults = () => {
     error,
   } = useTraditionalSearch();
 
+  const defaultFilters = useMemo<TraditionalSearchFilters>(
+    () => ({
+      query: "",
+      partnerTypes: [],
+      priceRange: [1, 5],
+      locations: [],
+      cuisineTypes: [],
+      tourTypes: [],
+      serviceTypes: [],
+      sortBy: "relevance",
+    }),
+    []
+  );
+
   // Debounced search hook
   const useDebounce = (value: string, delay: number) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -121,7 +139,11 @@ export const SearchResults = () => {
   // Load filter options on mount
   useEffect(() => {
     loadFilterOptions();
-  }, []); // Only run once on mount
+  }, [loadFilterOptions]);
+
+  useEffect(() => {
+    searchPartners(defaultFilters);
+  }, [searchPartners, defaultFilters]);
 
   // Initialize filter states from URL parameters on mount
   useEffect(() => {
@@ -249,7 +271,8 @@ export const SearchResults = () => {
     sortBy,
     currentFilters.destination,
     currentFilters.type,
-  ]); // Removed searchPartners and searchParams to avoid infinite loop
+    searchPartners,
+  ]);
 
   // Run initial search after initialization is complete
   useEffect(() => {
@@ -278,7 +301,20 @@ export const SearchResults = () => {
 
       searchPartners(filters);
     }
-  }, [isInitializing]); // Only run when initialization completes
+  }, [
+    isInitializing,
+    debouncedSearchQuery,
+    priceRange,
+    selectedPartnerTypes,
+    selectedLocations,
+    selectedCuisineTypes,
+    selectedTourTypes,
+    selectedServiceTypes,
+    sortBy,
+    currentFilters.destination,
+    currentFilters.type,
+    searchPartners,
+  ]); // Only run when initialization completes
 
   // Helper function to map legacy types to partner types
   const mapLegacyTypeToPartnerType = (legacyType: string): string => {
@@ -1224,19 +1260,16 @@ export const SearchResults = () => {
             <div className="h-[600px] overflow-hidden rounded-lg border border-neutral-700">
               <MapView
                 partners={partners
-                  .filter(
+                  .filter(p => p.type !== "experience")
+                  .map(
                     p =>
-                      p.type === "hotel" ||
-                      p.type === "restaurant" ||
-                      p.type === "tour" ||
-                      p.type === "transport"
-                  )
-                  .map(p => ({
-                    ...p,
-                    price_range: p.priceRange,
-                    location: p.location.city,
-                    type: p.type as "hotel" | "restaurant" | "tour" | "shuttle",
-                  }))}
+                      ({
+                        ...p,
+                        price_range: p.priceRange,
+                        location: p.location.city,
+                        type: p.type === "transport" ? "shuttle" : p.type,
+                      }) as PartnerData
+                  )}
                 selectedPartnerId={
                   selectedPartnerTypes.length > 0 ? partners[0]?.id : undefined
                 }

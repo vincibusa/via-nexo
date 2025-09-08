@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,16 @@ import { MapPin, Navigation, ZoomIn, ZoomOut, Layers, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PartnerData } from "@/types";
 import Image from "next/image";
+
+// Dynamically import Leaflet components to avoid SSR issues
+const DynamicMap = dynamic(() => import("./LeafletMap"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full w-full items-center justify-center rounded-lg bg-neutral-100">
+      <div className="text-neutral-600">Caricamento mappa...</div>
+    </div>
+  ),
+});
 
 interface MapViewProps {
   partners: PartnerData[];
@@ -35,6 +46,15 @@ const CITY_COORDINATES: Record<string, { lat: number; lng: number }> = {
   Palermo: { lat: 38.1157, lng: 13.3613 },
   Bari: { lat: 41.1171, lng: 16.8719 },
   Genova: { lat: 44.4056, lng: 8.9463 },
+  Verona: { lat: 45.4384, lng: 10.9916 },
+  Padova: { lat: 45.4064, lng: 11.8768 },
+  Trieste: { lat: 45.6486, lng: 13.7768 },
+  Brescia: { lat: 45.5384, lng: 10.2213 },
+  Modena: { lat: 44.6453, lng: 10.9251 },
+  Parma: { lat: 44.8015, lng: 10.3275 },
+  "Reggio Emilia": { lat: 44.698, lng: 10.6303 },
+  Perugia: { lat: 43.1121, lng: 12.3955 },
+  Livorno: { lat: 43.5523, lng: 10.3081 },
 };
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -49,16 +69,35 @@ export const MapView: React.FC<MapViewProps> = ({
   useEffect(() => {
     // Convert partners to map markers with coordinates
     const newMarkers: MapMarker[] = partners.map(partner => {
-      // Extract city from location or use default
-      const city = partner.location?.split(",")[0]?.trim() || "Roma";
-      const coordinates = CITY_COORDINATES[city] || CITY_COORDINATES["Roma"];
+      let lat = 41.9028; // Default Roma lat
+      let lng = 12.4964; // Default Roma lng
 
-      // Add small random offset to prevent overlapping markers
-      const offset = 0.01;
+      // Use real coordinates if available
+      if (
+        partner.coordinates &&
+        partner.coordinates.lat &&
+        partner.coordinates.lng
+      ) {
+        lat = partner.coordinates.lat;
+        lng = partner.coordinates.lng;
+      } else {
+        // Fallback to city coordinates if available
+        const city = partner.location?.split(",")[0]?.trim() || "Roma";
+        const cityCoords = CITY_COORDINATES[city];
+        if (cityCoords) {
+          lat = cityCoords.lat;
+          lng = cityCoords.lng;
+        }
+        // Add small random offset for defaults to prevent clustering
+        const offset = 0.005;
+        lat += (Math.random() - 0.5) * offset;
+        lng += (Math.random() - 0.5) * offset;
+      }
+
       return {
         id: partner.id,
-        lat: coordinates.lat + (Math.random() - 0.5) * offset,
-        lng: coordinates.lng + (Math.random() - 0.5) * offset,
+        lat,
+        lng,
         partner,
       };
     });
@@ -104,62 +143,6 @@ export const MapView: React.FC<MapViewProps> = ({
         return "📍";
     }
   };
-
-  // Mock SVG map of Italy for demonstration
-  const MapSVG = () => (
-    <div className="relative h-full w-full overflow-hidden rounded-lg bg-gradient-to-br from-blue-100 to-blue-200">
-      {/* Simplified Italy outline */}
-      <svg
-        viewBox="0 0 400 500"
-        className="h-full w-full"
-        style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))" }}
-      >
-        {/* Italy shape (simplified) */}
-        <path
-          d="M200 50 Q220 60 230 80 L240 120 Q250 140 245 160 L240 200 Q235 220 240 240 L250 280 Q260 300 255 320 L250 360 Q245 380 250 400 L240 440 Q230 460 220 480 L180 490 Q160 485 140 480 L120 460 Q110 440 100 420 L90 380 Q85 360 90 340 L100 300 Q105 280 100 260 L95 220 Q90 200 100 180 L110 140 Q120 120 130 100 L150 70 Q170 50 200 50 Z"
-          fill="#e5f3ff"
-          stroke="#94a3b8"
-          strokeWidth="2"
-        />
-
-        {/* Map markers */}
-        {markers.map(marker => {
-          const x = (marker.lng + 5) * 15; // Convert lng to x coordinate
-          const y = 500 - (marker.lat - 35) * 12; // Convert lat to y coordinate
-          const isSelected = selectedPartnerId === marker.id;
-
-          return (
-            <g key={marker.id}>
-              {/* Marker pin */}
-              <circle
-                cx={x}
-                cy={y}
-                r={isSelected ? "8" : "6"}
-                className={cn(
-                  "cursor-pointer transition-all duration-200 hover:scale-110",
-                  getMarkerColor(marker.partner.type),
-                  isSelected && "ring-opacity-50 ring-4 ring-white"
-                )}
-                fill="currentColor"
-                onClick={() => handleMarkerClick(marker)}
-              />
-
-              {/* Partner type icon */}
-              <text
-                x={x}
-                y={y + 2}
-                textAnchor="middle"
-                fontSize="8"
-                className="pointer-events-none"
-              >
-                {getPartnerTypeIcon(marker.partner.type)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    </div>
-  );
 
   return (
     <div className={cn("relative h-full", className)}>
@@ -307,7 +290,13 @@ export const MapView: React.FC<MapViewProps> = ({
 
       {/* Map Container */}
       <div className="h-full w-full">
-        <MapSVG />
+        <DynamicMap
+          markers={markers}
+          selectedPartnerId={selectedPartnerId}
+          onMarkerClick={handleMarkerClick}
+          getMarkerColor={getMarkerColor}
+          getPartnerTypeIcon={getPartnerTypeIcon}
+        />
       </div>
     </div>
   );

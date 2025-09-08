@@ -65,24 +65,15 @@ export function useTraditionalSearch(): UseTraditionalSearchReturn {
       console.group("🔍 useTraditionalSearch - API-based search");
       console.log("📥 Received filters:", filters);
       console.log("📊 Filter analysis:", {
-        hasQuery: !!filters.query.trim(),
-        queryLength: filters.query.trim().length,
+        hasQuery: !!(filters.query || "").trim(),
+        queryLength: (filters.query || "").trim().length,
         partnerTypesCount: filters.partnerTypes.length,
         locationsCount: filters.locations.length,
         priceRange: filters.priceRange,
       });
 
-      if (
-        !filters.query.trim() &&
-        filters.partnerTypes.length === 0 &&
-        filters.locations.length === 0
-      ) {
-        console.log("❌ Early return: no search criteria");
-        console.groupEnd();
-        setResults([]);
-        setTotal(0);
-        return;
-      }
+      // Remove early return to show all partners when no filters
+      console.log("🔍 Proceeding with search (even if no filters to show all)");
 
       console.log("✅ Making API request to /api/search/traditional");
       setLoading(true);

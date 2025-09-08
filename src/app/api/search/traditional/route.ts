@@ -135,16 +135,10 @@ export async function POST(request: NextRequest) {
       sortBy,
     });
 
-    // Early return se non ci sono criteri di ricerca
-    if (!query.trim() && partnerTypes.length === 0 && locations.length === 0) {
-      console.log("❌ No search criteria provided");
-      return NextResponse.json({
-        success: true,
-        results: [],
-        total: 0,
-        message: "No search criteria provided",
-      });
-    }
+    // Proceed with query even if no filters to show all partners
+    console.log(
+      "🔍 Proceeding with search (showing all partners if no filters)"
+    );
 
     // Costruisci la query base
     let supabaseQuery = supabase.from("partners").select(`
@@ -220,8 +214,7 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    // Limita risultati
-    supabaseQuery = supabaseQuery.limit(25);
+    // No limit to show all results
 
     console.log("🔍 Executing Supabase query...");
 
