@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -35,10 +36,6 @@ import {
 import { useTraditionalSearch } from "@/hooks/useTraditionalSearch";
 import { AIAssistantModal } from "@/components/search/AIAssistantModal";
 import { FilterSuggestions } from "@/lib/ai-filter-extractor";
-import {
-  FilterPresets,
-  type FilterPreset,
-} from "@/components/search/FilterPresets";
 import { SearchSuggestions } from "@/components/search/SearchSuggestions";
 import { MapView } from "@/components/search/MapView";
 import { ChevronDown, ChevronUp, Map, List } from "lucide-react";
@@ -65,7 +62,6 @@ export const SearchResults = () => {
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [activePreset, setActivePreset] = useState<string | undefined>();
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [currentFilters, setCurrentFilters] = useState({
@@ -74,6 +70,7 @@ export const SearchResults = () => {
     budget: "",
     type: "",
   });
+  const [isInitializing, setIsInitializing] = useState(true);
   const [urlUpdateQueue, setUrlUpdateQueue] = useState<{
     search?: string;
     partnerTypes?: string[];
@@ -83,6 +80,8 @@ export const SearchResults = () => {
     tourTypes?: string[];
     serviceTypes?: string[];
     sortBy?: string;
+    viewMode?: "list" | "map";
+    showAdvanced?: boolean;
   } | null>(null);
 
   // Traditional search hook
@@ -122,30 +121,59 @@ export const SearchResults = () => {
   // Load filter options on mount
   useEffect(() => {
     loadFilterOptions();
-  }, [loadFilterOptions]);
+  }, []); // Only run once on mount
 
   // Initialize filter states from URL parameters on mount
   useEffect(() => {
+    console.group("🔄 Initializing filters from URL");
+
     // Get URL params
     const searchQueryFromURL = searchParams.get("q") || "";
     const partnerTypesFromURL =
       searchParams.get("types")?.split(",").filter(Boolean) || [];
     const locationsFromURL =
       searchParams.get("locations")?.split(",").filter(Boolean) || [];
+    const cuisineTypesFromURL =
+      searchParams.get("cuisine_types")?.split(",").filter(Boolean) || [];
+    const tourTypesFromURL =
+      searchParams.get("tour_types")?.split(",").filter(Boolean) || [];
+    const serviceTypesFromURL =
+      searchParams.get("service_types")?.split(",").filter(Boolean) || [];
     const priceMinFromURL = parseInt(searchParams.get("price_min") || "1");
     const priceMaxFromURL = parseInt(searchParams.get("price_max") || "5");
     const sortByFromURL = searchParams.get("sort") || "relevance";
+    const viewModeFromURL =
+      searchParams.get("view_mode") === "map" ? "map" : "list";
+    const showAdvancedFromURL = searchParams.get("show_advanced") === "true";
     const destination = searchParams.get("destination") || "";
     const duration = searchParams.get("duration") || "";
     const budget = searchParams.get("budget") || "";
     const type = searchParams.get("type") || "";
 
+    console.log("📥 URL params loaded:", {
+      searchQuery: searchQueryFromURL,
+      partnerTypes: partnerTypesFromURL,
+      locations: locationsFromURL,
+      cuisineTypes: cuisineTypesFromURL,
+      tourTypes: tourTypesFromURL,
+      serviceTypes: serviceTypesFromURL,
+      priceRange: [priceMinFromURL, priceMaxFromURL],
+      sortBy: sortByFromURL,
+      viewMode: viewModeFromURL,
+      showAdvanced: showAdvancedFromURL,
+    });
+
     // Set initial states from URL
     setSearchQuery(searchQueryFromURL);
     setSelectedPartnerTypes(partnerTypesFromURL);
     setSelectedLocations(locationsFromURL);
+    setSelectedCuisineTypes(cuisineTypesFromURL);
+    setSelectedTourTypes(tourTypesFromURL);
+    setSelectedServiceTypes(serviceTypesFromURL);
     setPriceRange([priceMinFromURL, priceMaxFromURL]);
     setSortBy(sortByFromURL);
+    setViewMode(viewModeFromURL);
+    setShowAdvancedFilters(showAdvancedFromURL);
     setCurrentFilters({ destination, duration, budget, type });
 
     // Map legacy parameters to new filter states if new parameters are not present
@@ -166,10 +194,21 @@ export const SearchResults = () => {
       };
       setPriceRange(priceRangeMap[budget] || [1, 5]);
     }
+
+    console.groupEnd();
+
+    // Mark initialization as complete after a short delay
+    setTimeout(() => setIsInitializing(false), 100);
   }, [searchParams]);
 
   // Perform search when filters change
   useEffect(() => {
+    // Skip search during initialization to avoid infinite loops
+    if (isInitializing) {
+      console.log("⏳ Skipping search during initialization");
+      return;
+    }
+
     const performSearch = async () => {
       // Build search filters
       const filters = {
@@ -193,12 +232,13 @@ export const SearchResults = () => {
         sortBy,
       };
 
+      console.log("🔍 Performing search with filters:", filters);
       await searchPartners(filters);
     };
 
     performSearch();
   }, [
-    searchParams,
+    isInitializing,
     debouncedSearchQuery,
     priceRange,
     selectedPartnerTypes,
@@ -207,10 +247,38 @@ export const SearchResults = () => {
     selectedTourTypes,
     selectedServiceTypes,
     sortBy,
-    searchPartners,
     currentFilters.destination,
     currentFilters.type,
-  ]);
+  ]); // Removed searchPartners and searchParams to avoid infinite loop
+
+  // Run initial search after initialization is complete
+  useEffect(() => {
+    if (!isInitializing) {
+      console.log("🚀 Running initial search after initialization");
+      const filters = {
+        query: debouncedSearchQuery,
+        partnerTypes:
+          selectedPartnerTypes.length > 0
+            ? selectedPartnerTypes
+            : currentFilters.type
+              ? [mapLegacyTypeToPartnerType(currentFilters.type)]
+              : [],
+        priceRange: priceRange as [number, number],
+        locations:
+          selectedLocations.length > 0
+            ? selectedLocations
+            : currentFilters.destination
+              ? [currentFilters.destination]
+              : [],
+        cuisineTypes: selectedCuisineTypes,
+        tourTypes: selectedTourTypes,
+        serviceTypes: selectedServiceTypes,
+        sortBy,
+      };
+
+      searchPartners(filters);
+    }
+  }, [isInitializing]); // Only run when initialization completes
 
   // Helper function to map legacy types to partner types
   const mapLegacyTypeToPartnerType = (legacyType: string): string => {
@@ -278,13 +346,18 @@ export const SearchResults = () => {
     tourTypes?: string[];
     serviceTypes?: string[];
     sortBy?: string;
+    viewMode?: "list" | "map";
+    showAdvanced?: boolean;
   }) => {
+    console.log("🔗 Queuing URL update:", filters);
     setUrlUpdateQueue(filters);
   };
 
   // Use effect to handle URL updates from queue
   useEffect(() => {
     if (urlUpdateQueue) {
+      console.group("🔗 Processing URL update queue");
+
       const params = new URLSearchParams(searchParams.toString());
       const filters = urlUpdateQueue;
 
@@ -315,6 +388,33 @@ export const SearchResults = () => {
         }
       }
 
+      // Update cuisine types
+      if (filters.cuisineTypes !== undefined) {
+        if (filters.cuisineTypes.length > 0) {
+          params.set("cuisine_types", filters.cuisineTypes.join(","));
+        } else {
+          params.delete("cuisine_types");
+        }
+      }
+
+      // Update tour types
+      if (filters.tourTypes !== undefined) {
+        if (filters.tourTypes.length > 0) {
+          params.set("tour_types", filters.tourTypes.join(","));
+        } else {
+          params.delete("tour_types");
+        }
+      }
+
+      // Update service types
+      if (filters.serviceTypes !== undefined) {
+        if (filters.serviceTypes.length > 0) {
+          params.set("service_types", filters.serviceTypes.join(","));
+        } else {
+          params.delete("service_types");
+        }
+      }
+
       // Update price range
       if (filters.priceRange !== undefined) {
         params.set("price_min", filters.priceRange[0].toString());
@@ -330,11 +430,33 @@ export const SearchResults = () => {
         }
       }
 
+      // Update view mode
+      if (filters.viewMode !== undefined) {
+        if (filters.viewMode !== "list") {
+          params.set("view_mode", filters.viewMode);
+        } else {
+          params.delete("view_mode");
+        }
+      }
+
+      // Update show advanced
+      if (filters.showAdvanced !== undefined) {
+        if (filters.showAdvanced) {
+          params.set("show_advanced", "true");
+        } else {
+          params.delete("show_advanced");
+        }
+      }
+
+      const newUrl = `/search?${params.toString()}`;
+      console.log("📤 Updated URL:", newUrl);
+
       // Update URL without page reload
-      router.replace(`/search?${params.toString()}`, { scroll: false });
+      router.replace(newUrl, { scroll: false });
 
       // Clear the queue
       setUrlUpdateQueue(null);
+      console.groupEnd();
     }
   }, [urlUpdateQueue, router, searchParams]);
 
@@ -363,6 +485,7 @@ export const SearchResults = () => {
   };
 
   const handleCuisineTypeChange = (cuisine: string, checked: boolean) => {
+    console.log("🍽️ Cuisine type changed:", { cuisine, checked });
     setSelectedCuisineTypes(prev => {
       const newCuisines = checked
         ? [...prev, cuisine]
@@ -373,6 +496,7 @@ export const SearchResults = () => {
   };
 
   const handleTourTypeChange = (tourType: string, checked: boolean) => {
+    console.log("🎯 Tour type changed:", { tourType, checked });
     setSelectedTourTypes(prev => {
       const newTourTypes = checked
         ? [...prev, tourType]
@@ -383,6 +507,7 @@ export const SearchResults = () => {
   };
 
   const handleServiceTypeChange = (serviceType: string, checked: boolean) => {
+    console.log("🚌 Service type changed:", { serviceType, checked });
     setSelectedServiceTypes(prev => {
       const newServiceTypes = checked
         ? [...prev, serviceType]
@@ -398,6 +523,7 @@ export const SearchResults = () => {
   };
 
   const clearAllFilters = () => {
+    console.log("🧹 Clearing all filters");
     setSearchQuery("");
     setPriceRange([1, 5]);
     setSelectedPartnerTypes([]);
@@ -406,7 +532,6 @@ export const SearchResults = () => {
     setSelectedTourTypes([]);
     setSelectedServiceTypes([]);
     setSortBy("relevance");
-    setActivePreset(undefined);
 
     // Clear all URL parameters
     updateURLParams({
@@ -451,6 +576,7 @@ export const SearchResults = () => {
         break;
       case "cuisineType":
         if (value) {
+          console.log("🍽️ Removing cuisine filter:", value);
           setSelectedCuisineTypes(prev => {
             const newCuisines = prev.filter(c => c !== value);
             updateURLParams({ cuisineTypes: newCuisines });
@@ -460,6 +586,7 @@ export const SearchResults = () => {
         break;
       case "tourType":
         if (value) {
+          console.log("🎯 Removing tour type filter:", value);
           setSelectedTourTypes(prev => {
             const newTourTypes = prev.filter(t => t !== value);
             updateURLParams({ tourTypes: newTourTypes });
@@ -469,6 +596,7 @@ export const SearchResults = () => {
         break;
       case "serviceType":
         if (value) {
+          console.log("🚌 Removing service type filter:", value);
           setSelectedServiceTypes(prev => {
             const newServiceTypes = prev.filter(s => s !== value);
             updateURLParams({ serviceTypes: newServiceTypes });
@@ -477,48 +605,6 @@ export const SearchResults = () => {
         }
         break;
     }
-  };
-
-  const handlePresetSelect = (preset: FilterPreset) => {
-    // Clear existing filters first
-    clearAllFilters();
-
-    // Apply preset filters
-    if (preset.filters.partnerTypes) {
-      setSelectedPartnerTypes(preset.filters.partnerTypes);
-    }
-    if (preset.filters.locations) {
-      setSelectedLocations(preset.filters.locations);
-    }
-    if (preset.filters.priceRange) {
-      setPriceRange(preset.filters.priceRange);
-    }
-    if (preset.filters.cuisineTypes) {
-      setSelectedCuisineTypes(preset.filters.cuisineTypes);
-    }
-    if (preset.filters.tourTypes) {
-      setSelectedTourTypes(preset.filters.tourTypes);
-    }
-    if (preset.filters.serviceTypes) {
-      setSelectedServiceTypes(preset.filters.serviceTypes);
-    }
-    if (preset.filters.searchQuery) {
-      setSearchQuery(preset.filters.searchQuery);
-    }
-
-    // Set active preset
-    setActivePreset(preset.id);
-
-    // Update URL parameters with preset filters
-    updateURLParams({
-      search: preset.filters.searchQuery,
-      partnerTypes: preset.filters.partnerTypes,
-      locations: preset.filters.locations,
-      priceRange: preset.filters.priceRange,
-      cuisineTypes: preset.filters.cuisineTypes,
-      tourTypes: preset.filters.tourTypes,
-      serviceTypes: preset.filters.serviceTypes,
-    });
   };
 
   const handleAISuggestions = (suggestions: FilterSuggestions) => {
@@ -573,14 +659,18 @@ export const SearchResults = () => {
     <div className="min-h-screen bg-gradient-to-br from-neutral-900 via-neutral-800 to-neutral-900">
       {/* Top Search Bar */}
       <div className="sticky top-0 z-10 border-b border-neutral-700 bg-neutral-900/90 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex flex-col items-center gap-4 lg:flex-row">
+        <div className="container mx-auto px-4 py-4 lg:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="relative flex-1">
               <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-neutral-400" />
               <Input
                 placeholder="Cerca destinazioni, hotel, attività..."
                 value={searchQuery}
                 onChange={e => {
+                  console.log("🔍 Search query changed:", {
+                    from: searchQuery,
+                    to: e.target.value,
+                  });
                   setSearchQuery(e.target.value);
                   updateURLParams({ search: e.target.value });
                 }}
@@ -607,21 +697,24 @@ export const SearchResults = () => {
                 isVisible={showSuggestions}
               />
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Controls Row */}
+            <div className="flex flex-row items-center gap-2 sm:gap-3">
               <Button
                 onClick={() => setIsAIAssistantOpen(true)}
                 variant="outline"
-                className="border-purple-600 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-white"
+                size="sm"
+                className="flex-shrink-0 border-purple-600 bg-purple-600/20 text-purple-300 hover:bg-purple-600/30 hover:text-white"
               >
-                <Sparkles className="mr-2 h-4 w-4" />
-                AI Assistant
+                <Sparkles className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">AI Assistant</span>
               </Button>
 
               <Select value={sortBy} onValueChange={handleSortChange}>
-                <SelectTrigger className="w-40 border-neutral-600 bg-neutral-800 text-white">
+                <SelectTrigger className="min-w-24 flex-1 border-neutral-600 bg-neutral-800 text-white sm:w-36 lg:w-40">
                   <SelectValue placeholder="Ordina per" />
                 </SelectTrigger>
-                <SelectContent className="border-neutral-600 bg-neutral-800">
+                <SelectContent className="border-neutral-600 bg-neutral-800 text-white">
                   <SelectItem value="relevance">Rilevanza</SelectItem>
                   <SelectItem value="name-asc">Nome A-Z</SelectItem>
                   <SelectItem value="name-desc">Nome Z-A</SelectItem>
@@ -633,32 +726,40 @@ export const SearchResults = () => {
               </Select>
 
               {/* View Mode Toggle */}
-              <div className="flex items-center overflow-hidden rounded-md border border-neutral-600 bg-neutral-800">
+              <div className="flex flex-shrink-0 items-center overflow-hidden rounded-md border border-neutral-600 bg-neutral-800">
                 <Button
                   variant={viewMode === "list" ? "default" : "ghost"}
-                  onClick={() => setViewMode("list")}
+                  onClick={() => {
+                    console.log("📋 View mode changed to: list");
+                    setViewMode("list");
+                    updateURLParams({ viewMode: "list" });
+                  }}
                   className={cn(
-                    "min-h-[44px] rounded-none border-0 px-4",
+                    "min-h-[36px] rounded-none border-0 px-2 text-xs sm:min-h-[44px] sm:px-4 sm:text-sm",
                     viewMode === "list"
                       ? "bg-primary-600 text-white"
                       : "bg-transparent text-neutral-300 hover:bg-neutral-700"
                   )}
                 >
-                  <List className="mr-1 h-4 w-4" />
-                  Lista
+                  <List className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Lista</span>
                 </Button>
                 <Button
                   variant={viewMode === "map" ? "default" : "ghost"}
-                  onClick={() => setViewMode("map")}
+                  onClick={() => {
+                    console.log("🗺️ View mode changed to: map");
+                    setViewMode("map");
+                    updateURLParams({ viewMode: "map" });
+                  }}
                   className={cn(
-                    "min-h-[44px] rounded-none border-0 px-4",
+                    "min-h-[36px] rounded-none border-0 px-2 text-xs sm:min-h-[44px] sm:px-4 sm:text-sm",
                     viewMode === "map"
                       ? "bg-primary-600 text-white"
                       : "bg-transparent text-neutral-300 hover:bg-neutral-700"
                   )}
                 >
-                  <Map className="mr-1 h-4 w-4" />
-                  Mappa
+                  <Map className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Mappa</span>
                 </Button>
               </div>
 
@@ -683,15 +784,11 @@ export const SearchResults = () => {
                     <SheetTitle className="text-white">
                       Filtra risultati
                     </SheetTitle>
+                    <SheetDescription className="text-neutral-400">
+                      Personalizza la tua ricerca con i filtri disponibili
+                    </SheetDescription>
                   </SheetHeader>
-                  <div className="py-6">
-                    {/* Filter Presets */}
-                    <FilterPresets
-                      onSelectPreset={handlePresetSelect}
-                      activePreset={activePreset}
-                      className="mb-6"
-                    />
-
+                  <div className="px-6 py-8">
                     {/* Mobile Filters - Same as sidebar */}
                     {/* Partner Type Filter */}
                     <div className="mb-6">
@@ -754,7 +851,7 @@ export const SearchResults = () => {
                       <Button
                         onClick={clearAllFilters}
                         variant="outline"
-                        className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+                        className="w-full border-neutral-600 bg-transparent text-white hover:bg-neutral-800"
                       >
                         Rimuovi tutti i filtri
                       </Button>
@@ -767,26 +864,26 @@ export const SearchResults = () => {
         </div>
       </div>
 
-      <div className="container mx-auto flex gap-6 px-6 py-6">
+      <div className="container mx-auto flex gap-4 px-4 py-6 lg:gap-6 lg:px-6">
         {/* Left Sidebar Filters */}
-        <div className="hidden w-80 lg:block">
-          <Card className="sticky top-24 border-neutral-700 bg-neutral-900/50 p-6">
+        <div className="hidden w-72 shrink-0 lg:block xl:w-80 2xl:w-96">
+          <Card className="sticky top-24 border-neutral-700 bg-neutral-900/50 p-4 xl:p-6">
             <h3 className="mb-4 text-lg font-semibold text-white">
               Filtra risultati
             </h3>
-
-            {/* Filter Presets */}
-            <FilterPresets
-              onSelectPreset={handlePresetSelect}
-              activePreset={activePreset}
-              className="mb-6"
-            />
 
             {/* Advanced Filters Toggle */}
             <div className="mb-4">
               <Button
                 variant="ghost"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                onClick={() => {
+                  console.log(
+                    "⚙️ Advanced filters toggled:",
+                    !showAdvancedFilters
+                  );
+                  setShowAdvancedFilters(!showAdvancedFilters);
+                  updateURLParams({ showAdvanced: !showAdvancedFilters });
+                }}
                 className="w-full justify-between p-0 text-neutral-300 hover:text-white"
               >
                 <span className="text-sm font-medium">Filtri avanzati</span>
@@ -1031,7 +1128,7 @@ export const SearchResults = () => {
                   <Button
                     onClick={clearAllFilters}
                     variant="outline"
-                    className="w-full border-neutral-600 text-white hover:bg-neutral-800"
+                    className="w-full border-neutral-600 bg-transparent text-white hover:bg-neutral-800"
                   >
                     Rimuovi tutti i filtri
                   </Button>
@@ -1157,11 +1254,11 @@ export const SearchResults = () => {
               {partners.map(partner => (
                 <Card
                   key={partner.id}
-                  className="overflow-hidden border-neutral-700 bg-neutral-900/50 transition-all duration-300 hover:bg-neutral-900/70"
+                  className="overflow-hidden border-0 bg-transparent transition-all duration-300 hover:bg-neutral-900/30"
                 >
-                  <div className="flex">
+                  <div className="flex flex-row items-center">
                     {/* Image */}
-                    <div className="relative h-48 w-80 flex-shrink-0">
+                    <div className="relative h-24 w-24 flex-shrink-0 sm:h-28 sm:w-28 md:h-32 md:w-64 lg:h-36 lg:w-72">
                       <Image
                         src={
                           partner.images[0] ||
@@ -1169,9 +1266,9 @@ export const SearchResults = () => {
                         }
                         alt={partner.name}
                         fill
-                        className="object-cover"
+                        className="object-cover md:object-center"
                       />
-                      <div className="bg-primary-500 absolute top-3 right-3 rounded-lg px-3 py-1 text-sm font-semibold text-white">
+                      <div className="bg-primary-500 absolute top-3 right-3 rounded-lg px-2 py-1 text-xs font-semibold text-white">
                         {getPriceRangeLabel(
                           partner.priceRange === "budget"
                             ? 1
@@ -1190,90 +1287,187 @@ export const SearchResults = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-6">
-                      <div className="mb-3 flex items-start justify-between">
-                        <div>
-                          <h3 className="mb-1 text-xl font-bold text-white">
-                            {partner.name}
-                          </h3>
-                          <div className="flex items-center gap-4 text-sm text-neutral-400">
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-4 w-4" />
-                              {partner.location.city}
+                    <div className="flex-1 p-3 sm:p-4 md:p-6">
+                      {/* Desktop: Row layout, Mobile: Column layout */}
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+                        {/* Main Content */}
+                        <div className="mb-4 flex-1 md:mr-6 md:mb-0">
+                          <div className="mb-3">
+                            <div className="mb-2 flex items-start justify-between">
+                              <h3 className="line-clamp-1 text-base font-bold text-white sm:text-lg md:text-xl">
+                                {partner.name}
+                              </h3>
+                              {/* Rating - Show on mobile next to title, on desktop in right section */}
+                              {partner.rating && (
+                                <div className="ml-2 flex items-center gap-1 md:hidden">
+                                  <div className="flex gap-0.5">
+                                    {renderStars(partner.rating)}
+                                  </div>
+                                  <span className="text-sm font-medium text-white">
+                                    {partner.rating.toFixed(1)}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                            {partner.contact.phone && (
-                              <span>{partner.contact.phone}</span>
-                            )}
-                            {partner.isVerified && (
-                              <Badge
-                                variant="outline"
-                                className="border-green-600 bg-green-900/20 text-xs text-green-400"
-                              >
-                                Verificato
-                              </Badge>
-                            )}
+
+                            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-neutral-400">
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3 flex-shrink-0" />
+                                <span className="truncate">
+                                  {partner.location.city}
+                                </span>
+                              </div>
+                              {partner.isVerified && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-green-600 bg-green-900/20 text-xs text-green-400"
+                                >
+                                  Verificato
+                                </Badge>
+                              )}
+                              {partner.rating && (
+                                <span className="text-xs text-neutral-500">
+                                  ({partner.reviewCount} recensioni)
+                                </span>
+                              )}
+                              {/* Mobile Price Range */}
+                              <div className="md:hidden">
+                                <Badge
+                                  variant="outline"
+                                  className="border-primary-600 bg-primary-900/20 text-primary-400 text-xs"
+                                >
+                                  {getPriceRangeLabel(
+                                    partner.priceRange === "budget"
+                                      ? 1
+                                      : partner.priceRange === "mid-range"
+                                        ? 2
+                                        : partner.priceRange === "luxury"
+                                          ? 3
+                                          : partner.priceRange === "premium"
+                                            ? 4
+                                            : 2
+                                  )}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="mb-3 line-clamp-2 text-sm text-neutral-300 md:line-clamp-1">
+                            {partner.description}
+                          </p>
+
+                          {/* Features */}
+                          <div className="mb-2 flex flex-wrap gap-1.5 md:mb-3">
+                            {/* Mobile: Show first 2 features */}
+                            <div className="flex flex-wrap gap-1.5 md:hidden">
+                              {partner.features
+                                .slice(0, 2)
+                                .map((feature, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="border-neutral-600 bg-neutral-800/50 text-xs text-neutral-300"
+                                  >
+                                    {feature}
+                                  </Badge>
+                                ))}
+                              {partner.features.length > 2 && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-neutral-600 bg-neutral-800/50 text-xs text-neutral-400"
+                                >
+                                  +{partner.features.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+
+                            {/* Desktop: Show first 4 features */}
+                            <div className="hidden md:flex md:flex-wrap md:gap-1.5">
+                              {partner.features
+                                .slice(0, 4)
+                                .map((feature, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="border-neutral-600 bg-neutral-800/50 text-xs text-neutral-300"
+                                  >
+                                    {feature}
+                                  </Badge>
+                                ))}
+                              {partner.features.length > 4 && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-neutral-600 bg-neutral-800/50 text-xs text-neutral-400"
+                                >
+                                  +{partner.features.length - 4}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Rating */}
-                        {partner.rating && (
-                          <div className="flex items-center gap-2">
-                            <div className="flex gap-1">
-                              {renderStars(partner.rating)}
+                        {/* Right Section - Desktop Only */}
+                        <div className="hidden md:block md:flex-shrink-0 md:text-right">
+                          {/* Desktop Rating */}
+                          {partner.rating && (
+                            <div className="mb-3">
+                              <div className="mb-1 flex items-center justify-end gap-1">
+                                <div className="flex gap-0.5">
+                                  {renderStars(partner.rating)}
+                                </div>
+                                <span className="text-lg font-bold text-white">
+                                  {partner.rating.toFixed(1)}
+                                </span>
+                              </div>
+                              <div className="text-xs text-neutral-500">
+                                {partner.reviewCount} recensioni
+                              </div>
                             </div>
-                            <span className="font-medium text-white">
-                              {partner.rating.toFixed(1)}
-                            </span>
-                            <span className="text-sm text-neutral-400">
-                              ({partner.reviewCount} recensioni)
-                            </span>
+                          )}
+
+                          {/* Price Range */}
+                          <div className="mb-4">
+                            <div className="text-primary-400 text-lg font-bold">
+                              {getPriceRangeLabel(
+                                partner.priceRange === "budget"
+                                  ? 1
+                                  : partner.priceRange === "mid-range"
+                                    ? 2
+                                    : partner.priceRange === "luxury"
+                                      ? 3
+                                      : partner.priceRange === "premium"
+                                        ? 4
+                                        : 2
+                              )}
+                            </div>
+                            <div className="text-xs text-neutral-400">
+                              {partner.priceRange === "budget" && "Economico"}
+                              {partner.priceRange === "mid-range" && "Medio"}
+                              {partner.priceRange === "luxury" && "Lusso"}
+                              {partner.priceRange === "premium" && "Premium"}
+                            </div>
                           </div>
-                        )}
-                      </div>
-
-                      <p className="mb-4 line-clamp-2 text-sm text-neutral-300">
-                        {partner.description}
-                      </p>
-
-                      {/* Features */}
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        {partner.features.slice(0, 4).map((feature, index) => (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            className="border-neutral-600 bg-neutral-800/50 text-neutral-300"
-                          >
-                            {feature}
-                          </Badge>
-                        ))}
-                        {partner.features.length > 4 && (
-                          <Badge
-                            variant="outline"
-                            className="border-neutral-600 bg-neutral-800/50 text-neutral-400"
-                          >
-                            +{partner.features.length - 4} altro
-                          </Badge>
-                        )}
+                        </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex gap-3">
+                      <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-neutral-600 text-white hover:bg-neutral-800"
+                          className="flex-1 border-neutral-600 text-black hover:bg-neutral-800"
                         >
-                          Vedi dettagli
+                          Dettagli
                         </Button>
                         {partner.contact.website && (
                           <Button
                             size="sm"
-                            className="bg-primary-500 hover:bg-primary-600 text-white"
+                            className="bg-primary-500 hover:bg-primary-600 flex-1 text-white"
                             onClick={() =>
                               window.open(partner.contact.website, "_blank")
                             }
                           >
-                            Visita sito
+                            Sito Web
                           </Button>
                         )}
                       </div>
@@ -1301,7 +1495,7 @@ export const SearchResults = () => {
                 <Button
                   onClick={clearAllFilters}
                   variant="outline"
-                  className="border-neutral-600 text-white hover:bg-neutral-800"
+                  className="border-neutral-600 bg-transparent text-white hover:bg-neutral-800"
                 >
                   Rimuovi filtri
                 </Button>
