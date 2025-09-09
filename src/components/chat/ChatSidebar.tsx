@@ -13,7 +13,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MessageSquare, Trash2, Clock, Calendar, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  MessageSquare,
+  Trash2,
+  Clock,
+  Calendar,
+  Plus,
+  Edit3,
+  Check,
+  X,
+} from "lucide-react";
 import type { ChatSession } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +32,7 @@ interface ChatSidebarProps {
   currentSessionId: string | null;
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
+  onRenameSession: (sessionId: string, newTitle: string) => Promise<void>;
   onNewSession: () => Promise<string>;
   collapsed?: boolean;
 }
@@ -31,11 +42,14 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   currentSessionId,
   onLoadSession,
   onDeleteSession,
+  onRenameSession,
   onNewSession,
   collapsed = false,
 }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -56,11 +70,6 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         year: "2-digit",
       });
     }
-  };
-
-  const getMessageCount = (session: ChatSession) => {
-    const userMessages = session.messages.filter(m => m.role === "user").length;
-    return userMessages;
   };
 
   const handleDeleteClick = (sessionId: string, event: React.MouseEvent) => {
@@ -94,6 +103,46 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       await onNewSession();
     } catch (error) {
       console.error("Failed to create new session:", error);
+    }
+  };
+
+  const handleEditClick = (
+    sessionId: string,
+    currentTitle: string,
+    event: React.MouseEvent
+  ) => {
+    event.stopPropagation();
+    setEditingSessionId(sessionId);
+    setEditingTitle(currentTitle);
+  };
+
+  const handleSaveEdit = async (sessionId: string) => {
+    if (!editingTitle.trim()) return;
+
+    try {
+      await onRenameSession(sessionId, editingTitle.trim());
+      setEditingSessionId(null);
+      setEditingTitle("");
+    } catch (error) {
+      console.error("Failed to rename session:", error);
+      // Keep edit mode open on error so user can retry
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSessionId(null);
+    setEditingTitle("");
+  };
+
+  const handleKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+    sessionId: string
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleSaveEdit(sessionId);
+    } else if (event.key === "Escape") {
+      handleCancelEdit();
     }
   };
 
@@ -176,27 +225,79 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         <MessageSquare className="mt-0.5 h-4 w-4 flex-shrink-0 text-neutral-500" />
 
                         <div className="min-w-0 flex-1">
-                          <p className="line-clamp-2 text-sm leading-snug font-medium text-neutral-200">
-                            {session.title}
-                          </p>
+                          {editingSessionId === session.id ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editingTitle}
+                                onChange={e => setEditingTitle(e.target.value)}
+                                onKeyDown={e => handleKeyDown(e, session.id)}
+                                onBlur={() => handleSaveEdit(session.id)}
+                                className="focus:border-primary-500 h-7 border-neutral-600 bg-neutral-800 text-sm text-neutral-200"
+                                autoFocus
+                                maxLength={100}
+                                onClick={e => e.stopPropagation()}
+                              />
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 hover:bg-green-900/30 hover:text-green-400"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleSaveEdit(session.id);
+                                  }}
+                                  title="Salva"
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5 hover:bg-red-900/30 hover:text-red-400"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleCancelEdit();
+                                  }}
+                                  title="Annulla"
+                                >
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="line-clamp-2 text-sm leading-snug font-medium text-neutral-200">
+                              {session.title}
+                            </p>
+                          )}
 
                           <div className="mt-1 flex items-center gap-2 text-xs text-neutral-500">
                             <Clock className="h-3 w-3" />
                             <span>{formatDate(session.updatedAt)}</span>
-                            <span>•</span>
-                            <span>{getMessageCount(session)} messaggi</span>
                           </div>
                         </div>
 
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-900/30 hover:text-red-400"
-                          onClick={e => handleDeleteClick(session.id, e)}
-                          title="Elimina chat"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-blue-900/30 hover:text-blue-400"
+                            onClick={e =>
+                              handleEditClick(session.id, session.title, e)
+                            }
+                            title="Rinomina chat"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-red-900/30 hover:text-red-400"
+                            onClick={e => handleDeleteClick(session.id, e)}
+                            title="Elimina chat"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

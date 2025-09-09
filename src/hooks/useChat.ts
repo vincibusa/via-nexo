@@ -28,6 +28,7 @@ interface UseChatReturn {
   currentSessionId: string | null;
   sessions: ChatSession[];
   deleteSession: (sessionId: string) => Promise<void>;
+  renameSession: (sessionId: string, newTitle: string) => Promise<void>;
 
   // Computed
   isLoading: boolean;
@@ -51,6 +52,7 @@ export function useChat(): UseChatReturn {
     loadSession: loadSessionFromStorage,
     createNewSession,
     deleteSession,
+    updateSessionTitle,
     saveMessages,
   } = useChatDatabasePersistence();
 
@@ -266,6 +268,19 @@ export function useChat(): UseChatReturn {
     [loadSessionFromStorage]
   );
 
+  const renameSession = useCallback(
+    async (sessionId: string, newTitle: string) => {
+      try {
+        await updateSessionTitle(sessionId, newTitle);
+      } catch (err) {
+        throw new Error(
+          err instanceof Error ? err.message : "Failed to rename session"
+        );
+      }
+    },
+    [updateSessionTitle]
+  );
+
   // Computed properties
   const isLoading = status === "loading" || isTyping;
   const canSend = status !== "loading" && !isTyping;
@@ -290,6 +305,7 @@ export function useChat(): UseChatReturn {
     currentSessionId,
     sessions,
     deleteSession,
+    renameSession,
 
     // Computed
     isLoading,

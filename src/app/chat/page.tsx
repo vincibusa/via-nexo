@@ -20,6 +20,7 @@ export default function ChatPage() {
     currentSessionId,
     loadSession,
     deleteSession,
+    renameSession,
     startNewSession,
   } = useChat();
   const searchParams = useSearchParams();
@@ -42,6 +43,7 @@ export default function ChatPage() {
           currentSessionId={currentSessionId}
           onLoadSession={loadSession}
           onDeleteSession={deleteSession}
+          onRenameSession={renameSession}
           onNewSession={startNewSession}
         >
           <div className="flex min-h-screen flex-col">

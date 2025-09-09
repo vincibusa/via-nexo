@@ -1,7 +1,10 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 const destinations = [
@@ -40,8 +43,17 @@ export const PopularDestinations = () => {
 
   return (
     <section className="container mx-auto w-full px-6 pb-24">
-      <h3 className="text-2xl font-bold text-white">Popular Destinations</h3>
-      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-12 flex flex-col items-center">
+        <h3 className="mb-4 text-3xl font-bold text-white md:text-4xl">
+          Destinazioni Popolari
+        </h3>
+        <p className="max-w-2xl text-center text-lg text-neutral-300">
+          Scopri le mete più amate dai nostri viaggiatori. Ogni destinazione
+          offre esperienze uniche con partner selezionati e verificati.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {destinations.map(dest => (
           <Card
             key={dest.name}
@@ -62,6 +74,20 @@ export const PopularDestinations = () => {
             <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
           </Card>
         ))}
+      </div>
+
+      <div className="mt-12 text-center">
+        <Button
+          asChild
+          variant="outline"
+          size="lg"
+          className="group focus:ring-primary-400 min-h-[48px] border-2 border-neutral-400 bg-neutral-800/50 px-8 py-4 text-lg font-semibold text-white transition-all duration-300 hover:border-neutral-300 hover:bg-neutral-700/70 focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-900"
+        >
+          <Link href="/search" className="flex items-center gap-2">
+            Scopri Tutte le Destinazioni
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </Button>
       </div>
     </section>
   );

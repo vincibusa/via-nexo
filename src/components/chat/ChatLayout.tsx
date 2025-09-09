@@ -13,6 +13,7 @@ interface ChatLayoutProps {
   currentSessionId: string | null;
   onLoadSession: (sessionId: string) => Promise<void>;
   onDeleteSession: (sessionId: string) => Promise<void>;
+  onRenameSession: (sessionId: string, newTitle: string) => Promise<void>;
   onNewSession: () => Promise<string>;
 }
 
@@ -22,6 +23,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
   currentSessionId,
   onLoadSession,
   onDeleteSession,
+  onRenameSession,
   onNewSession,
 }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Default to closed
@@ -69,6 +71,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({
             currentSessionId={currentSessionId}
             onLoadSession={onLoadSession}
             onDeleteSession={onDeleteSession}
+            onRenameSession={onRenameSession}
             onNewSession={onNewSession}
             collapsed={sidebarCollapsed}
           />
