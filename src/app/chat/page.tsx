@@ -50,15 +50,6 @@ export default function ChatPage() {
             <NavigationBreadcrumb />
 
             <main className="flex flex-1 flex-col items-center overflow-y-auto px-4 py-8 sm:px-6 lg:px-8">
-              <div className="mb-8 text-center">
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                  Ask me anything
-                </h2>
-                <p className="mt-2 text-lg leading-8 text-neutral-400">
-                  I can help you plan your next trip. Ask me anything about
-                  destinations, activities, or travel tips.
-                </p>
-              </div>
               <div className="flex w-full max-w-4xl flex-1 flex-col">
                 <ChatMessages
                   messages={messages}
