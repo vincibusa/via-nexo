@@ -31,6 +31,16 @@ interface AgentResult {
   error?: string;
 }
 
+interface ProgressUpdate {
+  type: "analyzing" | "agent_start" | "agent_complete" | "finalizing";
+  agent?: PartnerData["type"];
+  partnersFound?: number;
+  message: string;
+  timestamp: number;
+}
+
+type ProgressCallback = (update: ProgressUpdate) => void;
+
 interface OrchestratorResult {
   success: boolean;
   message: string;
@@ -350,9 +360,17 @@ export async function runAgentOrchestration(
   conversationHistory: Array<{
     role: "user" | "assistant" | "system";
     content: string;
-  }> = []
+  }> = [],
+  onProgress?: ProgressCallback
 ): Promise<OrchestratorResult> {
   const startTime = Date.now();
+
+  // Progress: Analyzing
+  onProgress?.({
+    type: "analyzing",
+    message: "Analyzing your travel request...",
+    timestamp: Date.now(),
+  });
 
   // Analizza la query
   const analysis = analyzeUserQuery(query);
@@ -384,15 +402,24 @@ export async function runAgentOrchestration(
     // Esecuzione parallela per query generali
     agentResults = await runAgentsInParallel(
       contextualPrompt,
-      analysis.detectedTypes
+      analysis.detectedTypes,
+      onProgress
     );
   } else {
     // Esecuzione sequenziale per query specifiche
     agentResults = await runAgentsSequentially(
       contextualPrompt,
-      analysis.detectedTypes
+      analysis.detectedTypes,
+      onProgress
     );
   }
+
+  // Progress: Finalizing
+  onProgress?.({
+    type: "finalizing",
+    message: "Creating personalized recommendations...",
+    timestamp: Date.now(),
+  });
 
   // Aggrega i risultati
   const allPartners = agentResults.flatMap(result => result.partners);
@@ -426,7 +453,8 @@ export async function runAgentOrchestration(
  */
 async function runAgentsInParallel(
   query: string,
-  agentTypes: PartnerData["type"][]
+  agentTypes: PartnerData["type"][],
+  onProgress?: ProgressCallback
 ): Promise<AgentResult[]> {
   const agentMap = {
     hotel: hotelAgent,
@@ -434,6 +462,16 @@ async function runAgentsInParallel(
     tour: tourAgent,
     shuttle: shuttleAgent,
   };
+
+  // Send start progress for all agents
+  agentTypes.forEach(type => {
+    onProgress?.({
+      type: "agent_start",
+      agent: type,
+      message: `Searching ${type}s...`,
+      timestamp: Date.now(),
+    });
+  });
 
   const agentPromises = agentTypes.map(async (type): Promise<AgentResult> => {
     const startTime = Date.now();
@@ -449,16 +487,28 @@ async function runAgentsInParallel(
         `[ORCHESTRATOR] Extracted ${partners.length} partners for ${type}`
       );
 
-      return {
+      const result: AgentResult = {
         agentType: type,
         success: true,
         message: response.finalOutput || "",
         partners,
         executionTime: Date.now() - startTime,
       };
+
+      // Progress: Agent complete
+      onProgress?.({
+        type: "agent_complete",
+        agent: type,
+        partnersFound: partners.length,
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} agent: found ${partners.length} partners`,
+        timestamp: Date.now(),
+      });
+
+      return result;
     } catch (error) {
       console.error(`[ORCHESTRATOR] Agent ${type} failed:`, error);
-      return {
+
+      const result: AgentResult = {
         agentType: type,
         success: false,
         message: `Failed to search ${type}s`,
@@ -466,6 +516,17 @@ async function runAgentsInParallel(
         executionTime: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Unknown error",
       };
+
+      // Progress: Agent complete (with error)
+      onProgress?.({
+        type: "agent_complete",
+        agent: type,
+        partnersFound: 0,
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} agent: error occurred`,
+        timestamp: Date.now(),
+      });
+
+      return result;
     }
   });
 
@@ -477,7 +538,8 @@ async function runAgentsInParallel(
  */
 async function runAgentsSequentially(
   query: string,
-  agentTypes: PartnerData["type"][]
+  agentTypes: PartnerData["type"][],
+  onProgress?: ProgressCallback
 ): Promise<AgentResult[]> {
   const agentMap = {
     hotel: hotelAgent,
@@ -490,6 +552,15 @@ async function runAgentsSequentially(
 
   for (const type of agentTypes) {
     const startTime = Date.now();
+
+    // Progress: Agent start
+    onProgress?.({
+      type: "agent_start",
+      agent: type,
+      message: `Searching ${type}s...`,
+      timestamp: Date.now(),
+    });
+
     try {
       const agent = agentMap[type];
       // Increase maxTurns for agents that make multiple tool calls
@@ -504,6 +575,15 @@ async function runAgentsSequentially(
         message: response.finalOutput || "",
         partners,
         executionTime: Date.now() - startTime,
+      });
+
+      // Progress: Agent complete
+      onProgress?.({
+        type: "agent_complete",
+        agent: type,
+        partnersFound: partners.length,
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} agent: found ${partners.length} partners`,
+        timestamp: Date.now(),
       });
 
       // Early termination se abbiamo già risultati sufficienti dal tipo primario
@@ -521,6 +601,15 @@ async function runAgentsSequentially(
         partners: [],
         executionTime: Date.now() - startTime,
         error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      // Progress: Agent complete (with error)
+      onProgress?.({
+        type: "agent_complete",
+        agent: type,
+        partnersFound: 0,
+        message: `${type.charAt(0).toUpperCase() + type.slice(1)} agent: error occurred`,
+        timestamp: Date.now(),
       });
     }
   }

@@ -60,11 +60,10 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
       "partners"
     );
     try {
-      await startPlanning(
-        selectedPartners,
-        message.content ||
-          "Crea un piano di viaggio ottimizzato con i partner selezionati"
-      );
+      // Create a proper planning query instead of using the assistant message content
+      const planningQuery = `Organizzami un itinerario dettagliato utilizzando questi ${selectedPartners.length} partner selezionati: ${selectedPartners.map(p => `${p.name} (${p.type})`).join(", ")}`;
+
+      await startPlanning(selectedPartners, planningQuery);
     } catch (error) {
       console.error("[MESSAGE_BUBBLE] Error starting planning:", error);
     }

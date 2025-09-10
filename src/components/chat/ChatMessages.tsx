@@ -2,7 +2,41 @@ import { ChatMessage } from "@/types";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { ConversationStarters } from "./ConversationStarters";
+import { AgentProgressGrid } from "./AgentProgressGrid";
+import { PlanningProgressGrid } from "./PlanningProgressGrid";
 import { useEffect, useRef } from "react";
+
+interface AgentProgress {
+  type:
+    | "analyzing"
+    | "agent_start"
+    | "agent_complete"
+    | "finalizing"
+    | "chat_processing"
+    | "complete"
+    | "error"
+    | "end";
+  agent?: "hotel" | "restaurant" | "tour" | "shuttle";
+  partnersFound?: number;
+  message: string;
+  timestamp: number;
+}
+
+interface PlanningProgress {
+  type:
+    | "analyzing_partners"
+    | "optimizing_geography"
+    | "creating_itinerary"
+    | "adding_recommendations"
+    | "finalizing_plan"
+    | "planning_complete"
+    | "planning_error"
+    | "planning_end";
+  message: string;
+  timestamp: number;
+  partnersProcessed?: number;
+  totalPartners?: number;
+}
 
 interface ChatMessagesProps {
   messages: ChatMessage[];
@@ -10,6 +44,10 @@ interface ChatMessagesProps {
   onRetry?: () => void;
   isLoading?: boolean;
   onSendMessage?: (message: string) => void;
+  agentProgress?: AgentProgress[];
+  isStreamingResponse?: boolean;
+  planningProgress?: PlanningProgress[];
+  isStreamingPlanning?: boolean;
 }
 
 export const ChatMessages = ({
@@ -18,6 +56,10 @@ export const ChatMessages = ({
   onRetry,
   isLoading,
   onSendMessage,
+  agentProgress = [],
+  isStreamingResponse = false,
+  planningProgress = [],
+  isStreamingPlanning = false,
 }: ChatMessagesProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +82,22 @@ export const ChatMessages = ({
         <MessageBubble key={message.id} message={message} />
       ))}
 
-      {/* Typing indicator when loading */}
-      {isLoading && !error && <TypingIndicator />}
+      {/* Agent progress grid when streaming orchestration */}
+      <AgentProgressGrid
+        agentProgress={agentProgress}
+        isVisible={isStreamingResponse && agentProgress.length > 0}
+      />
+
+      {/* Planning progress grid when streaming planning */}
+      <PlanningProgressGrid
+        planningProgress={planningProgress}
+        isVisible={isStreamingPlanning && planningProgress.length > 0}
+      />
+
+      {/* Typing indicator when loading (but not during streaming) */}
+      {isLoading && !error && !isStreamingResponse && !isStreamingPlanning && (
+        <TypingIndicator />
+      )}
 
       {/* Messaggio di errore con pulsante retry */}
       {error && (

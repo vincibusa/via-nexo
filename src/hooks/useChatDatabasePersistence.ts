@@ -335,11 +335,17 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
 
   const loadSession = useCallback(
     async (sessionId: string): Promise<ChatMessage[]> => {
-      setCurrentSessionId(sessionId);
+      // Avoid duplicate session ID setting if already current
+      if (currentSessionId !== sessionId) {
+        setCurrentSessionId(sessionId);
+      }
 
       // Check if session exists locally with messages
       const localSession = sessions.find(s => s.id === sessionId);
       if (localSession && localSession.messages.length > 0) {
+        console.log(
+          `[CHAT_PERSISTENCE] Using cached messages for session ${sessionId}`
+        );
         return localSession.messages;
       }
 
@@ -376,23 +382,34 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
           })
         );
 
-        // Update local session with messages
-        setSessions(prev =>
-          prev.map(session => {
-            if (session.id === sessionId) {
-              return {
-                ...session,
-                messages: messagesWithPartners,
-                context: {
-                  query:
-                    messagesWithPartners.find(m => m.role === "user")
-                      ?.content || session.context.query,
-                },
-              };
-            }
-            return session;
-          })
-        );
+        // Update local session with messages only if it's different to prevent unnecessary re-renders
+        setSessions(prev => {
+          const sessionIndex = prev.findIndex(s => s.id === sessionId);
+          if (sessionIndex === -1) return prev;
+
+          const currentSession = prev[sessionIndex];
+          const updatedSession = {
+            ...currentSession,
+            messages: messagesWithPartners,
+            context: {
+              query:
+                messagesWithPartners.find(m => m.role === "user")?.content ||
+                currentSession.context.query,
+            },
+          };
+
+          // Only update if there's actually a change
+          if (
+            JSON.stringify(currentSession.messages) !==
+            JSON.stringify(messagesWithPartners)
+          ) {
+            const newSessions = [...prev];
+            newSessions[sessionIndex] = updatedSession;
+            return newSessions;
+          }
+
+          return prev;
+        });
 
         return messagesWithPartners;
       } catch (err) {
@@ -405,7 +422,7 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
         setLoading(false);
       }
     },
-    [user, isOnline, sessions]
+    [user, isOnline, sessions, currentSessionId]
   );
 
   const saveMessages = useCallback(

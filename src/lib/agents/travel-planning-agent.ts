@@ -16,6 +16,21 @@ interface PlanningInput {
   };
 }
 
+interface PlanningProgressUpdate {
+  type:
+    | "analyzing_partners"
+    | "optimizing_geography"
+    | "creating_itinerary"
+    | "adding_recommendations"
+    | "finalizing_plan";
+  message: string;
+  timestamp: number;
+  partnersProcessed?: number;
+  totalPartners?: number;
+}
+
+type PlanningProgressCallback = (update: PlanningProgressUpdate) => void;
+
 export const travelPlanningAgent = new Agent({
   name: "Via Nexo Travel Planning Specialist",
   model: "gpt-5-mini",
@@ -92,10 +107,22 @@ export const travelPlanningAgent = new Agent({
 });
 
 /**
- * Funzione helper per invocare il travel planning agent
+ * Funzione helper per invocare il travel planning agent con progress tracking
  */
-export async function createTravelPlan(input: PlanningInput): Promise<string> {
+export async function createTravelPlanWithProgress(
+  input: PlanningInput,
+  onProgress?: PlanningProgressCallback
+): Promise<string> {
   const { selectedPartners, userQuery, preferences = {} } = input;
+
+  // Phase 1: Analyzing partners
+  onProgress?.({
+    type: "analyzing_partners",
+    message: `Analizzando ${selectedPartners.length} partner selezionati...`,
+    timestamp: Date.now(),
+    totalPartners: selectedPartners.length,
+    partnersProcessed: 0,
+  });
 
   // Raggruppa partner per categoria per analisi
   const partnersByType = {
@@ -104,6 +131,25 @@ export async function createTravelPlan(input: PlanningInput): Promise<string> {
     tours: selectedPartners.filter(p => p.type === "tour"),
     shuttles: selectedPartners.filter(p => p.type === "shuttle"),
   };
+
+  // Phase 2: Optimizing geography
+  onProgress?.({
+    type: "optimizing_geography",
+    message: "Ottimizzando disposizione geografica e logistica...",
+    timestamp: Date.now(),
+    totalPartners: selectedPartners.length,
+    partnersProcessed: selectedPartners.length,
+  });
+
+  // Brief delay to simulate processing time and allow UI to update
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  // Phase 3: Creating itinerary
+  onProgress?.({
+    type: "creating_itinerary",
+    message: "Creazione itinerario dettagliato in corso...",
+    timestamp: Date.now(),
+  });
 
   // Prepara il contesto dettagliato per l'agente
   const contextualPrompt = `
@@ -156,7 +202,33 @@ Crea un piano di viaggio dettagliato che integri TUTTI questi partner selezionat
 
   // Esegui l'agente con il contesto completo
   const response = await run(travelPlanningAgent, contextualPrompt);
+
+  // Phase 4: Adding recommendations
+  onProgress?.({
+    type: "adding_recommendations",
+    message: "Aggiungendo consigli esperti e finalizzazione...",
+    timestamp: Date.now(),
+  });
+
+  // Brief delay for final processing
+  await new Promise(resolve => setTimeout(resolve, 500));
+
+  // Phase 5: Finalizing plan
+  onProgress?.({
+    type: "finalizing_plan",
+    message: "Piano di viaggio completato!",
+    timestamp: Date.now(),
+  });
+
   return (
     response.finalOutput || "Errore nella generazione del piano di viaggio."
   );
+}
+
+/**
+ * Funzione helper per invocare il travel planning agent (senza progress tracking)
+ * Mantiene backward compatibility con il codice esistente
+ */
+export async function createTravelPlan(input: PlanningInput): Promise<string> {
+  return createTravelPlanWithProgress(input);
 }

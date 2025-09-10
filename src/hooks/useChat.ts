@@ -4,9 +4,25 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import type { ChatMessage, ChatSession, Status } from "@/types";
+import type { ChatMessage, ChatSession, Status, PartnerData } from "@/types";
 import { CHAT_CONFIG } from "@/constants";
 import { useChatDatabasePersistence } from "./useChatDatabasePersistence";
+
+interface AgentProgress {
+  type:
+    | "analyzing"
+    | "agent_start"
+    | "agent_complete"
+    | "finalizing"
+    | "chat_processing"
+    | "complete"
+    | "error"
+    | "end";
+  agent?: "hotel" | "restaurant" | "tour" | "shuttle";
+  partnersFound?: number;
+  message: string;
+  timestamp: number;
+}
 
 interface UseChatReturn {
   // State
@@ -30,6 +46,10 @@ interface UseChatReturn {
   deleteSession: (sessionId: string) => Promise<void>;
   renameSession: (sessionId: string, newTitle: string) => Promise<void>;
 
+  // Progress tracking
+  agentProgress: AgentProgress[];
+  isStreamingResponse: boolean;
+
   // Computed
   isLoading: boolean;
   canSend: boolean;
@@ -40,10 +60,13 @@ export function useChat(): UseChatReturn {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [agentProgress, setAgentProgress] = useState<AgentProgress[]>([]);
+  const [isStreamingResponse, setIsStreamingResponse] = useState(false);
 
   const lastUserMessageRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isLoadingSessionRef = useRef(false);
+  const isManualSelectionRef = useRef(false);
 
   // Persistence hooks
   const {
@@ -126,13 +149,16 @@ export function useChat(): UseChatReturn {
       abortControllerRef.current = new AbortController();
 
       try {
-        // Use AI Chat API for conversational responses
+        // Use streaming AI Chat API for real-time progress
         const conversationHistory = messages.map(msg => ({
           role: msg.role,
           content: msg.content,
         }));
 
-        const response = await fetch("/api/chat/conversation", {
+        setIsStreamingResponse(true);
+        setAgentProgress([]);
+
+        const response = await fetch("/api/chat/conversation/stream", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -158,23 +184,74 @@ export function useChat(): UseChatReturn {
           throw new Error(`Chat request failed: ${response.status}`);
         }
 
-        const data = await response.json();
+        // Handle Server-Sent Events
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
 
-        if (!data.success) {
-          throw new Error(data.error || "Chat request failed");
+        if (!reader) {
+          throw new Error("Failed to read streaming response");
+        }
+
+        let finalMessage = "";
+        let finalPartners: PartnerData[] = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const eventData = JSON.parse(line.slice(6));
+
+                // Handle different event types
+                if (
+                  eventData.category === "progress" ||
+                  eventData.type === "analyzing" ||
+                  eventData.type === "agent_start" ||
+                  eventData.type === "agent_complete" ||
+                  eventData.type === "finalizing" ||
+                  eventData.type === "chat_processing"
+                ) {
+                  // Update progress
+                  setAgentProgress(prev => {
+                    const newProgress = [...prev, eventData];
+                    return newProgress.slice(-10); // Keep only last 10 progress updates
+                  });
+                } else if (eventData.type === "complete") {
+                  finalMessage = eventData.message;
+                  finalPartners = eventData.partners || [];
+                } else if (eventData.type === "error") {
+                  throw new Error(eventData.message);
+                } else if (eventData.type === "end") {
+                  // Stream completed
+                  break;
+                }
+              } catch (parseError) {
+                console.warn("[CHAT] Failed to parse SSE data:", parseError);
+              }
+            }
+          }
+        }
+
+        if (!finalMessage) {
+          throw new Error("No response received from chat API");
         }
 
         const assistantMessage: ChatMessage = {
           id: generateMessageId(),
           role: "assistant",
-          content: data.message,
+          content: finalMessage,
           timestamp: new Date().toISOString(),
           metadata: {
             searchQuery: content,
-            partnersReturned: data.partners?.length || 0,
+            partnersReturned: finalPartners?.length || 0,
             confidence: 0.9,
           },
-          partners: data.partners || [],
+          partners: finalPartners || [],
         };
 
         setMessages(prev => [...prev, assistantMessage]);
@@ -193,6 +270,8 @@ export function useChat(): UseChatReturn {
         setMessages(prev => prev.slice(0, -1));
       } finally {
         setIsTyping(false);
+        setIsStreamingResponse(false);
+        setAgentProgress([]);
         abortControllerRef.current = null;
       }
     },
@@ -246,9 +325,15 @@ export function useChat(): UseChatReturn {
   }, [createNewSession]);
 
   const loadSession = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, isManualSelection = true) => {
+      // Prevent duplicate loading if already loading the same session
+      if (isLoadingSessionRef.current && currentSessionId === sessionId) {
+        return;
+      }
+
       setStatus("loading");
       isLoadingSessionRef.current = true;
+      isManualSelectionRef.current = isManualSelection;
 
       try {
         const sessionMessages = await loadSessionFromStorage(sessionId);
@@ -262,11 +347,30 @@ export function useChat(): UseChatReturn {
         // Allow saving again after a brief delay
         setTimeout(() => {
           isLoadingSessionRef.current = false;
+          isManualSelectionRef.current = false;
         }, 100);
       }
     },
-    [loadSessionFromStorage]
+    [loadSessionFromStorage, currentSessionId]
   );
+
+  // Auto-load the most recent session only on initial mount with empty state
+  useEffect(() => {
+    if (
+      sessions.length > 0 &&
+      messages.length === 0 &&
+      !currentSessionId &&
+      !isLoadingSessionRef.current &&
+      status === "idle" // Only when in idle state to prevent interference
+    ) {
+      const mostRecentSession = sessions[0]; // sessions are sorted by updatedAt desc
+      console.log(
+        "[CHAT] Auto-loading most recent session:",
+        mostRecentSession.id
+      );
+      loadSession(mostRecentSession.id, false); // Auto-load, not manual selection
+    }
+  }, [sessions.length, currentSessionId, messages.length, status, loadSession]);
 
   const renameSession = useCallback(
     async (sessionId: string, newTitle: string) => {
@@ -306,6 +410,10 @@ export function useChat(): UseChatReturn {
     sessions,
     deleteSession,
     renameSession,
+
+    // Progress tracking
+    agentProgress,
+    isStreamingResponse,
 
     // Computed
     isLoading,
