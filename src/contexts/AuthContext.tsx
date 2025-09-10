@@ -10,6 +10,7 @@ import React, {
 import { User, AuthError, Session } from "@supabase/supabase-js";
 import { createClientComponentClient } from "@/lib/supabase-client-unified";
 import { UserProfile } from "@/lib/supabase-auth";
+import { useSupabaseCookieSync } from "@/hooks/useSupabaseCookieSync";
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +34,7 @@ interface AuthContextType {
   updateProfile: (
     updates: Partial<UserProfile>
   ) => Promise<{ error?: AuthError | null }>;
+  forceSetUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,11 +48,30 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  console.log("[AUTH] 🚀 AuthProvider mounting...");
+
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  console.log("[AUTH] 📱 Creating Supabase client...");
   const supabase = createClientComponentClient();
+
+  // Use cookie sync hook to ensure cookies are properly managed
+  console.log("[AUTH] 🔄 Initializing cookie sync...");
+  useSupabaseCookieSync();
+
+  // Debug logging for state changes
+  useEffect(() => {
+    console.log("[AUTH_STATE] User:", user?.email || "null");
+    console.log(
+      "[AUTH_STATE] UserProfile:",
+      userProfile?.display_name || "null"
+    );
+    console.log("[AUTH_STATE] Session:", session ? "exists" : "null");
+    console.log("[AUTH_STATE] Loading:", loading);
+  }, [user, userProfile, session, loading]);
 
   const fetchUserProfile = useCallback(
     async (userId: string) => {
@@ -88,20 +109,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log(
-        "[AUTH] Initial session loaded:",
-        session?.user?.email || "no user"
-      );
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user?.id) {
-        fetchUserProfile(session.user.id);
-      } else {
+    // Get initial session with retry mechanism
+    const initializeAuth = async () => {
+      try {
+        console.log("[AUTH] Starting auth initialization...");
+
+        // Try multiple times to get session
+        let session = null;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (!session && attempts < maxAttempts) {
+          attempts++;
+          console.log(
+            `[AUTH] Attempt ${attempts}/${maxAttempts} to get session...`
+          );
+
+          const {
+            data: { session: attemptSession },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
+          if (attemptSession) {
+            session = attemptSession;
+            console.log("[AUTH] ✅ Session found on attempt", attempts);
+          } else if (!sessionError) {
+            console.log("[AUTH] No session found, attempting refresh...");
+            const { data: refreshData } = await supabase.auth.refreshSession();
+            if (refreshData.session) {
+              session = refreshData.session;
+              console.log("[AUTH] ✅ Session recovered via refresh");
+            }
+          }
+
+          if (!session && attempts < maxAttempts) {
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+
+        console.log(
+          "[AUTH] Final session state:",
+          session?.user?.email || "no user"
+        );
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user?.id) {
+          await fetchUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("[AUTH] Error initializing auth:", error);
         setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const {
@@ -112,6 +178,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         event,
         session?.user?.email || "no user"
       );
+
+      // Handle specific auth events
+      if (event === "TOKEN_REFRESHED") {
+        console.log("[AUTH] Token refreshed successfully");
+      } else if (event === "SIGNED_OUT") {
+        console.log("[AUTH] User signed out");
+        setSession(null);
+        setUser(null);
+        setUserProfile(null);
+        setLoading(false);
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -125,6 +204,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, [supabase.auth, fetchUserProfile]);
+
+  // Periodic session check as fallback
+  useEffect(() => {
+    if (!user) return;
+
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
+        if (error || !session) {
+          console.warn("[AUTH] Session lost, clearing user state");
+          setUser(null);
+          setUserProfile(null);
+          setSession(null);
+        }
+      } catch (error) {
+        console.warn("[AUTH] Session check failed:", error);
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(checkSession, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user, supabase.auth]);
 
   const signIn = async (email: string, password: string) => {
     console.log("[AUTH] Attempting login with:", email);
@@ -300,6 +405,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
+  const forceSetUser = useCallback(
+    (newUser: User | null) => {
+      console.log("[AUTH] 🔄 Force setting user:", newUser?.email || "null");
+      setUser(newUser);
+      if (newUser) {
+        fetchUserProfile(newUser.id);
+      } else {
+        setUserProfile(null);
+        setLoading(false);
+      }
+    },
+    [fetchUserProfile]
+  );
+
   const value = {
     user,
     userProfile,
@@ -309,6 +428,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     updateProfile,
+    forceSetUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

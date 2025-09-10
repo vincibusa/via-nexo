@@ -90,10 +90,19 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
+          const cookieOptions = {
+            ...options,
+            path: options.path || "/",
+            httpOnly: options.httpOnly !== false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: (options.sameSite as "lax" | "strict" | "none") || "lax",
+            maxAge: options.maxAge || 60 * 60 * 24 * 7, // 7 days default
+          };
+
           request.cookies.set({
             name,
             value,
-            ...options,
+            ...cookieOptions,
           });
           response = NextResponse.next({
             request: {
@@ -103,14 +112,21 @@ export async function middleware(request: NextRequest) {
           response.cookies.set({
             name,
             value,
-            ...options,
+            ...cookieOptions,
           });
         },
         remove(name: string, options: CookieOptions) {
+          const cookieOptions = {
+            ...options,
+            path: options.path || "/",
+            expires: new Date(0),
+            maxAge: 0,
+          };
+
           request.cookies.set({
             name,
             value: "",
-            ...options,
+            ...cookieOptions,
           });
           response = NextResponse.next({
             request: {
@@ -120,25 +136,88 @@ export async function middleware(request: NextRequest) {
           response.cookies.set({
             name,
             value: "",
-            ...options,
+            ...cookieOptions,
           });
         },
       },
     }
   );
 
-  // Get user authentication status
+  // Get user authentication status with session refresh
   const {
-    data: { user },
+    data: { user: initialUser },
+    error: userError,
   } = await supabase.auth.getUser();
+  let user = initialUser;
+
+  // If no user but we have session cookies, try to refresh the session
+  if (!user && !userError) {
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (session && !sessionError) {
+        // Session exists, refresh it
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        user = refreshData.user;
+      }
+    } catch (refreshError) {
+      console.warn("[MIDDLEWARE] Session refresh failed:", refreshError);
+    }
+  }
 
   const cookies = request.cookies.getAll();
-  const supabaseCookies = cookies.filter(cookie =>
-    cookie.name.includes("supabase")
+  const supabaseCookies = cookies.filter(
+    cookie => cookie.name.includes("supabase") || cookie.name.includes("sb-")
+  );
+
+  // Enhanced debugging with all cookie names
+  console.log(
+    `[MIDDLEWARE] Path: ${pathname}, User: ${user ? user.email : "not logged in"}, Total Cookies: ${cookies.length}`
   );
   console.log(
-    `[MIDDLEWARE] Path: ${pathname}, User: ${user ? user.email : "not logged in"}, Total Cookies: ${cookies.length}, Supabase Cookies: ${supabaseCookies.map(c => c.name).join(", ")}`
+    `[MIDDLEWARE] All cookies: ${cookies.map(c => c.name).join(", ")}`
   );
+  console.log(
+    `[MIDDLEWARE] Supabase Cookies: ${supabaseCookies.map(c => `${c.name}=${c.value?.substring(0, 20)}...`).join(", ")}`
+  );
+
+  // Debug specific cookie issues and attempt fix
+  if (user && supabaseCookies.length === 0) {
+    console.warn(
+      "[MIDDLEWARE] ⚠️ User authenticated but no Supabase cookies found! Attempting to recreate session cookies..."
+    );
+
+    // Force session refresh to create cookies
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        console.log(
+          "[MIDDLEWARE] 🔄 Session found, cookies should be set automatically"
+        );
+
+        // Force cookie creation through a refresh
+        const refreshResult = await supabase.auth.refreshSession();
+        if (refreshResult.data.session) {
+          console.log("[MIDDLEWARE] ✅ Session refreshed successfully");
+        }
+      }
+    } catch (forceError) {
+      console.error(
+        "[MIDDLEWARE] ❌ Failed to force session refresh:",
+        forceError
+      );
+    }
+  }
+
+  if (!user && supabaseCookies.length > 0) {
+    console.warn(
+      "[MIDDLEWARE] ⚠️ Supabase cookies exist but no user found. Attempting session recovery..."
+    );
+  }
 
   // Get user profile for role checking
   let userProfile = null;

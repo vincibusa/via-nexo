@@ -35,7 +35,14 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export const Header = () => {
   const pathname = usePathname();
-  const { user, userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut, loading } = useAuth();
+
+  // Debug logging
+  console.log("[HEADER] Auth state:", {
+    user: user?.email || "null",
+    userProfile: userProfile?.display_name || "null",
+    loading,
+  });
 
   // Filter navigation links based on authentication status
   const allNavLinks = [

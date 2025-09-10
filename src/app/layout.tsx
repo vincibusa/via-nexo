@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { Header } from "@/components/page/Header";
+import { HeaderWrapper } from "@/components/page/HeaderWrapper";
 import { ClientAuthProvider } from "@/components/providers/AuthProvider";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -63,7 +63,7 @@ export default function RootLayout({
         )}
       >
         <ClientAuthProvider>
-          <Header />
+          <HeaderWrapper />
           <Suspense fallback={<div>Loading...</div>}>
             <main>{children}</main>
           </Suspense>

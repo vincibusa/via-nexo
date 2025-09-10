@@ -58,6 +58,9 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
 
   const { user } = useAuth();
 
+  // Debug logging
+  console.log("[CHAT_PERSISTENCE] User state:", user?.email || "null");
+
   const loadSessionsFromFallback = useCallback(() => {
     try {
       const stored = localStorage.getItem(FALLBACK_STORAGE_KEY);
