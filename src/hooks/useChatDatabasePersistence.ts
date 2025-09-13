@@ -47,6 +47,9 @@ const FALLBACK_STORAGE_KEY = "via-nexo-chat-sessions-fallback";
 const MAX_SESSIONS = 50;
 const MAX_SESSION_AGE_DAYS = 30;
 
+// Global flag to prevent multiple simultaneous database calls
+let isLoadingConversations = false;
+
 export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -103,6 +106,16 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
       return;
     }
 
+    // Prevent multiple simultaneous calls using global flag
+    if (isLoadingConversations) {
+      console.log(
+        "[CHAT_PERSISTENCE] Already loading sessions globally, skipping..."
+      );
+      return;
+    }
+
+    isLoadingConversations = true;
+    console.log("[CHAT_PERSISTENCE] Fetching conversations from API...");
     setLoading(true);
     setError(null);
 
@@ -132,10 +145,21 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
         updatedAt: conv.updatedAt,
       }));
 
+      console.log(
+        `[CHAT_PERSISTENCE] ✅ Loaded ${chatSessions.length} conversations from database:`,
+        chatSessions.map(s => ({ id: s.id.slice(-8), title: s.title }))
+      );
       setSessions(chatSessions);
 
       // Save to fallback storage for offline access
-      saveFallbackSessions(chatSessions);
+      try {
+        localStorage.setItem(
+          FALLBACK_STORAGE_KEY,
+          JSON.stringify(chatSessions)
+        );
+      } catch (err) {
+        console.error("Failed to save fallback sessions:", err);
+      }
     } catch (err) {
       console.error("Failed to load sessions from database:", err);
       setError(
@@ -146,8 +170,9 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
       loadSessionsFromFallback();
     } finally {
       setLoading(false);
+      isLoadingConversations = false;
     }
-  }, [user, isOnline, loadSessionsFromFallback, saveFallbackSessions]);
+  }, [user, isOnline, loadSessionsFromFallback]);
 
   // Monitor online status
   useEffect(() => {
@@ -163,15 +188,26 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
     };
   }, []);
 
-  // Load sessions on mount and when user changes
+  // Load sessions only once on mount when user is available
   useEffect(() => {
-    if (user) {
-      loadSessionsFromDatabase();
-    } else {
-      setSessions([]);
-      setCurrentSessionId(null);
-    }
-  }, [user, loadSessionsFromDatabase]);
+    let hasLoaded = false;
+
+    const loadOnce = async () => {
+      if (user && !hasLoaded) {
+        hasLoaded = true;
+        console.log(
+          "[CHAT_PERSISTENCE] Loading sessions for user:",
+          user.email
+        );
+        await loadSessionsFromDatabase();
+      } else if (!user) {
+        setSessions([]);
+        setCurrentSessionId(null);
+      }
+    };
+
+    loadOnce();
+  }, [user]); // Only run when user changes
 
   const generateSessionTitle = (firstMessage?: ChatMessage): string => {
     if (!firstMessage?.content) {
@@ -353,6 +389,17 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
         return localSession?.messages || [];
       }
 
+      // Prevent loading if already in progress
+      if (loading) {
+        console.log(
+          `[CHAT_PERSISTENCE] Already loading, skipping session ${sessionId}`
+        );
+        return localSession?.messages || [];
+      }
+
+      console.log(
+        `[CHAT_PERSISTENCE] Fetching messages for session ${sessionId.slice(-8)}...`
+      );
       setLoading(true);
       setError(null);
 
@@ -380,6 +427,14 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
               ((msg.metadata as { partners?: unknown[] })
                 ?.partners as PartnerData[]) || [],
           })
+        );
+
+        console.log(
+          `[CHAT_PERSISTENCE] ✅ Loaded ${messagesWithPartners.length} messages for session ${sessionId.slice(-8)}:`,
+          messagesWithPartners.map(m => ({
+            role: m.role,
+            content: m.content.slice(0, 50) + "...",
+          }))
         );
 
         // Update local session with messages only if it's different to prevent unnecessary re-renders
@@ -428,24 +483,21 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
   const saveMessages = useCallback(
     async (sessionId: string, messages: ChatMessage[]): Promise<void> => {
       // Update local state immediately
-      setSessions(prev =>
-        prev.map(session => {
+      setSessions(prev => {
+        const updated = prev.map(session => {
           if (session.id === sessionId) {
-            const updated = {
+            return {
               ...session,
               messages,
               updatedAt: new Date().toISOString(),
             };
-            return updated;
           }
           return session;
-        })
-      );
+        });
 
-      // Save to fallback storage
-      setSessions(prev => {
-        saveFallbackSessions(prev);
-        return prev;
+        // Save to fallback storage
+        saveFallbackSessions(updated);
+        return updated;
       });
 
       // Save new messages to database

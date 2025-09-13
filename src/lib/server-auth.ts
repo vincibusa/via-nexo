@@ -1,5 +1,4 @@
 import { createClient } from "./supabase-auth";
-import { cookies } from "next/headers";
 
 export async function getServerUser() {
   try {

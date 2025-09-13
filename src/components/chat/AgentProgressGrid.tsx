@@ -184,7 +184,7 @@ export function AgentProgressGrid({
           )}
 
           {/* Agent Grid */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             {Object.entries(agentConfig).map(([agentKey, config]) => {
               const state = agentStates[agentKey];
               const IconComponent = config.icon;

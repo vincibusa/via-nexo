@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchingProfile, setFetchingProfile] = useState(false);
 
   console.log("[AUTH] 📱 Creating Supabase client...");
   const supabase = createClientComponentClient();
@@ -79,17 +80,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!userId) {
         console.warn("[AUTH] No userId provided to fetchUserProfile");
         setUserProfile(null);
-        setLoading(false);
         return;
       }
 
+      // Prevent multiple simultaneous fetches for the same user
+      if (fetchingProfile) {
+        console.log("[AUTH] Already fetching profile, skipping...");
+        return;
+      }
+
+      // Check if we already have a profile for this user
+      if (userProfile?.id === userId) {
+        console.log("[AUTH] Profile already cached for user:", userId);
+        return;
+      }
+
+      setFetchingProfile(true);
       try {
         console.log("[AUTH] Fetching user profile for:", userId);
-        const { data, error } = await supabase
+
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Profile fetch timeout")), 5000)
+        );
+
+        const queryPromise = supabase
           .from("user_profiles")
           .select("*")
           .eq("id", userId)
           .single();
+
+        const result = await Promise.race([queryPromise, timeoutPromise]);
+        const { data, error } = result as {
+          data: UserProfile | null;
+          error: unknown;
+        };
 
         if (error) {
           console.warn("[AUTH] Error fetching user profile:", error);
@@ -102,10 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.warn("[AUTH] Unexpected error fetching user profile:", error);
         setUserProfile(null);
       } finally {
-        setLoading(false);
+        setFetchingProfile(false);
       }
     },
-    [supabase]
+    [supabase, fetchingProfile, userProfile?.id]
   );
 
   useEffect(() => {
@@ -156,11 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
 
-        if (session?.user?.id) {
-          await fetchUserProfile(session.user.id);
-        } else {
-          setLoading(false);
-        }
+        // Set loading to false immediately - user state is now determined
+        setLoading(false);
+
+        // Profile will be fetched by auth state change listener
       } catch (error) {
         console.error("[AUTH] Error initializing auth:", error);
         setLoading(false);
@@ -194,16 +218,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
 
+      // Set loading to false immediately - user state is now determined
+      setLoading(false);
+
       if (session?.user?.id) {
-        await fetchUserProfile(session.user.id);
+        // Only fetch profile if we don't have it or it's for a different user
+        if (!userProfile || userProfile.id !== session.user.id) {
+          console.log(
+            "[AUTH] Auth state changed, fetching profile for:",
+            session.user.id
+          );
+          fetchUserProfile(session.user.id);
+        }
       } else {
         setUserProfile(null);
-        setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase.auth, fetchUserProfile]);
+  }, [supabase.auth, fetchUserProfile, userProfile]);
 
   // Periodic session check as fallback
   useEffect(() => {
@@ -250,9 +283,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } = await supabase.auth.getUser();
       console.log("[AUTH] User after getUser:", user?.email);
       setUser(user);
-      if (user) {
-        await fetchUserProfile(user.id);
-      }
+      // Profile will be fetched by auth state change listener
       return {};
     }
 
@@ -405,19 +436,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const forceSetUser = useCallback(
-    (newUser: User | null) => {
-      console.log("[AUTH] 🔄 Force setting user:", newUser?.email || "null");
-      setUser(newUser);
-      if (newUser) {
-        fetchUserProfile(newUser.id);
-      } else {
-        setUserProfile(null);
-        setLoading(false);
-      }
-    },
-    [fetchUserProfile]
-  );
+  const forceSetUser = useCallback((newUser: User | null) => {
+    console.log("[AUTH] 🔄 Force setting user:", newUser?.email || "null");
+    setUser(newUser);
+    if (!newUser) {
+      setUserProfile(null);
+      setLoading(false);
+    }
+    // Profile will be fetched by auth state change listener if newUser exists
+  }, []);
 
   const value = {
     user,

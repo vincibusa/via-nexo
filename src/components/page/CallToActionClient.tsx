@@ -3,10 +3,16 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
-export const CallToActionSection = () => {
-  const { user, loading } = useAuth();
+interface CallToActionClientProps {
+  initialUser: SupabaseUser | null;
+}
+
+export const CallToActionClient = ({
+  initialUser,
+}: CallToActionClientProps) => {
+  const user = initialUser;
 
   return (
     <section className="container mx-auto w-full px-6 py-24">
@@ -21,7 +27,7 @@ export const CallToActionSection = () => {
         </p>
 
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-          {!loading && user ? (
+          {user ? (
             <>
               <Button
                 asChild
@@ -48,7 +54,7 @@ export const CallToActionSection = () => {
                 </Link>
               </Button>
             </>
-          ) : !loading ? (
+          ) : (
             <>
               <Button
                 asChild
@@ -74,7 +80,7 @@ export const CallToActionSection = () => {
                 </Link>
               </Button>
             </>
-          ) : null}
+          )}
         </div>
 
         <div className="mt-8 border-t border-neutral-700 pt-8">

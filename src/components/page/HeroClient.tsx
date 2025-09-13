@@ -3,10 +3,14 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MessageCircle, Search } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
-export const Hero = () => {
-  const { user, loading } = useAuth();
+interface HeroClientProps {
+  initialUser: SupabaseUser | null;
+}
+
+export const HeroClient = ({ initialUser }: HeroClientProps) => {
+  const user = initialUser;
 
   const scrollToFeatures = () => {
     const featuresSection = document.getElementById("features");
@@ -54,7 +58,7 @@ export const Hero = () => {
       </div>
 
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
-        {!loading && user ? (
+        {user ? (
           <>
             <Button
               asChild
@@ -81,7 +85,7 @@ export const Hero = () => {
               </Link>
             </Button>
           </>
-        ) : !loading ? (
+        ) : (
           <>
             <Button
               asChild
@@ -107,7 +111,7 @@ export const Hero = () => {
               </Link>
             </Button>
           </>
-        ) : null}
+        )}
       </div>
 
       <Button

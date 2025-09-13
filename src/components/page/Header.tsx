@@ -57,9 +57,10 @@ export const Header = () => {
     { href: "/community", label: "Community", icon: Users },
   ];
 
-  const navLinks = user
-    ? allNavLinks
-    : allNavLinks.filter(link => !link.authRequired);
+  const navLinks =
+    loading || !user
+      ? allNavLinks.filter(link => !link.authRequired)
+      : allNavLinks;
 
   const handleSignOut = async () => {
     console.log("[HEADER] Logout button clicked");
@@ -118,7 +119,7 @@ export const Header = () => {
 
         {/* Desktop Icons */}
         <div className="hidden items-center gap-2 md:flex">
-          {user ? (
+          {!loading && user ? (
             <>
               <Button variant="ghost" size="icon">
                 <NotificationIcon className="h-6 w-6 text-neutral-400" />
@@ -174,7 +175,7 @@ export const Header = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
-          ) : (
+          ) : !loading ? (
             <div className="flex items-center gap-2">
               <Button variant="ghost" asChild className="text-neutral-200">
                 <Link href="/login">
@@ -189,7 +190,7 @@ export const Header = () => {
                 </Link>
               </Button>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Mobile Menu Trigger */}
@@ -237,7 +238,7 @@ export const Header = () => {
 
                 {/* Authentication Section */}
                 <div className="mt-6 border-t border-neutral-700 pt-6">
-                  {user ? (
+                  {!loading && user ? (
                     <>
                       {/* User Info */}
                       <div className="flex items-center gap-3 px-4 py-2">
@@ -285,7 +286,7 @@ export const Header = () => {
                         <span>Esci</span>
                       </button>
                     </>
-                  ) : (
+                  ) : !loading ? (
                     <>
                       <Link
                         href="/login"
@@ -302,7 +303,7 @@ export const Header = () => {
                         <span>Registrati</span>
                       </Link>
                     </>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </SheetContent>

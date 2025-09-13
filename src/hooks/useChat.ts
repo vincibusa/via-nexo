@@ -80,22 +80,35 @@ export function useChat(): UseChatReturn {
   } = useChatDatabasePersistence();
 
   // Auto-save messages when they change (but not when loading a session)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     if (
       currentSessionId &&
       messages.length > 0 &&
       !isLoadingSessionRef.current
     ) {
-      // Use a timeout to debounce saves and prevent excessive database writes
-      const timeoutId = setTimeout(async () => {
+      // Clear existing timeout
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+
+      // Debounce saves to prevent excessive database writes
+      saveTimeoutRef.current = setTimeout(async () => {
         try {
+          console.log(
+            `[CHAT] Auto-saving ${messages.length} messages for session ${currentSessionId}`
+          );
           await saveMessages(currentSessionId, messages);
         } catch (err) {
           console.error("Failed to auto-save messages:", err);
         }
-      }, 1000); // Increased timeout for database operations
+      }, 2000); // Increased timeout for database operations
 
-      return () => clearTimeout(timeoutId);
+      return () => {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+        }
+      };
     }
   }, [currentSessionId, messages, saveMessages]);
 
@@ -354,19 +367,32 @@ export function useChat(): UseChatReturn {
     [loadSessionFromStorage, currentSessionId]
   );
 
-  // Auto-load the most recent session only on initial mount with empty state
+  // Auto-load the most recent session only once on initial mount
+  const hasAutoLoadedRef = useRef(false);
   useEffect(() => {
+    console.log("[CHAT] Auto-load check:", {
+      sessionsLength: sessions.length,
+      messagesLength: messages.length,
+      currentSessionId,
+      isLoadingSession: isLoadingSessionRef.current,
+      status,
+      hasAutoLoaded: hasAutoLoadedRef.current,
+    });
+
     if (
       sessions.length > 0 &&
       messages.length === 0 &&
       !currentSessionId &&
       !isLoadingSessionRef.current &&
-      status === "idle" // Only when in idle state to prevent interference
+      status === "idle" &&
+      !hasAutoLoadedRef.current // Only auto-load once
     ) {
+      hasAutoLoadedRef.current = true;
       const mostRecentSession = sessions[0]; // sessions are sorted by updatedAt desc
       console.log(
-        "[CHAT] Auto-loading most recent session:",
-        mostRecentSession.id
+        "[CHAT] ✅ Auto-loading most recent session:",
+        mostRecentSession.id,
+        mostRecentSession.title
       );
       loadSession(mostRecentSession.id, false); // Auto-load, not manual selection
     }
