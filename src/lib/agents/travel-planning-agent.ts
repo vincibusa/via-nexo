@@ -203,6 +203,14 @@ Crea un piano di viaggio dettagliato che integri TUTTI questi partner selezionat
   // Esegui l'agente con il contesto completo
   const response = await run(travelPlanningAgent, contextualPrompt);
 
+  if (!response.finalOutput) {
+    console.error(
+      "[AGENT] L'agente non ha prodotto un output finale.",
+      response
+    );
+    throw new Error("L'agente non è riuscito a generare un piano di viaggio.");
+  }
+
   // Phase 4: Adding recommendations
   onProgress?.({
     type: "adding_recommendations",

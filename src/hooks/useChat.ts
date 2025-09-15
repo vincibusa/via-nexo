@@ -24,7 +24,7 @@ interface AgentProgress {
   timestamp: number;
 }
 
-interface UseChatReturn {
+export interface UseChatReturn {
   // State
   messages: ChatMessage[];
   status: Status;
@@ -207,6 +207,7 @@ export function useChat(): UseChatReturn {
 
         let finalMessage = "";
         let finalPartners: PartnerData[] = [];
+        let planningMessageId: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -229,7 +230,42 @@ export function useChat(): UseChatReturn {
                   eventData.type === "finalizing" ||
                   eventData.type === "chat_processing"
                 ) {
-                  // Update progress
+                  // Persist planning steps as a distinct message
+                  setMessages(prevMessages => {
+                    if (!planningMessageId) {
+                      // Create a new planning message
+                      planningMessageId = generateMessageId();
+                      const newPlanningMessage: ChatMessage = {
+                        id: planningMessageId,
+                        role: "assistant",
+                        content: "", // No text content for this type
+                        timestamp: new Date().toISOString(),
+                        metadata: {
+                          type: "planning",
+                          progress: [eventData],
+                        },
+                      };
+                      return [...prevMessages, newPlanningMessage];
+                    }
+                    // Update existing planning message
+                    return prevMessages.map(msg => {
+                      if (msg.id === planningMessageId) {
+                        const currentProgress =
+                          (msg.metadata?.progress as AgentProgress[]) || [];
+                        return {
+                          ...msg,
+                          metadata: {
+                            ...msg.metadata,
+                            type: "planning",
+                            progress: [...currentProgress, eventData],
+                          },
+                        };
+                      }
+                      return msg;
+                    });
+                  });
+
+                  // Also update the temporary agentProgress state for any UI that uses it directly
                   setAgentProgress(prev => {
                     const newProgress = [...prev, eventData];
                     return newProgress.slice(-10); // Keep only last 10 progress updates

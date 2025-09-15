@@ -107,9 +107,12 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   metadata?: {
+    type?: string;
     searchQuery?: string;
     partnersReturned?: number;
     confidence?: number;
+    progress?: unknown;
+    plan?: string;
   };
   partners?: PartnerData[];
 }

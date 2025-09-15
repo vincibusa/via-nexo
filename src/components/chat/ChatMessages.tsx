@@ -78,15 +78,27 @@ export const ChatMessages = ({
         <ConversationStarters onSelectStarter={onSendMessage} />
       )}
 
-      {messages.map(message => (
-        <MessageBubble key={message.id} message={message} />
-      ))}
+      {messages.map(message => {
+        // If the message is a planning message, render the progress grid
+        if (message.metadata?.type === "planning") {
+          const progress = message.metadata.progress as
+            | AgentProgress[]
+            | undefined;
+          if (!progress || progress.length === 0) return null;
 
-      {/* Agent progress grid when streaming orchestration */}
-      <AgentProgressGrid
-        agentProgress={agentProgress}
-        isVisible={isStreamingResponse && agentProgress.length > 0}
-      />
+          // We only want to show the grid, not a bubble
+          return (
+            <AgentProgressGrid
+              key={message.id}
+              agentProgress={progress}
+              isVisible={true}
+            />
+          );
+        }
+
+        // Otherwise, render the standard message bubble
+        return <MessageBubble key={message.id} message={message} />;
+      })}
 
       {/* Planning progress grid when streaming planning */}
       <PlanningProgressGrid

@@ -206,9 +206,11 @@ export function PlanningProvider({
         const planMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `🎯 **Piano di Viaggio Creato**\n\nHo creato un piano personalizzato utilizzando i ${partners.length} partner selezionati:\n\n${finalPlan}`,
+          content: `🎯 **Piano di Viaggio Creato**\n\nHo creato un piano personalizzato utilizzando i ${partners.length} partner selezionati.`,
           timestamp: new Date().toISOString(),
           metadata: {
+            type: "itinerary_plan",
+            plan: finalPlan,
             partnersReturned: partners.length,
             searchQuery: userQuery || "Piano di viaggio personalizzato",
           },
@@ -218,7 +220,7 @@ export function PlanningProvider({
         addMessage(planMessage);
 
         setCurrentPlan(finalPlan);
-        setIsPlanningMode(false); // Esci dalla modalità planning dopo aver creato il messaggio
+
         console.log("[PLANNING] Plan generated successfully and added to chat");
       } catch (err) {
         console.error("[PLANNING] Error generating plan:", err);
@@ -254,11 +256,14 @@ export function PlanningProvider({
       try {
         setError(null);
         setIsGeneratingPlan(true);
+        // Start streaming planning with progress tracking
+        setIsStreamingPlanning(true);
+        setPlanningProgress([]);
 
         console.log("[PLANNING] Regenerating plan...");
 
-        // Chiama l'API per rigenerare il piano di viaggio
-        const response = await fetch("/api/planning/create", {
+        // Chiama lAPI per rigenerare il piano di viaggio in streaming
+        const response = await fetch("/api/planning/stream", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -275,22 +280,75 @@ export function PlanningProvider({
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            errorData.error || "Errore durante la rigenerazione del piano"
-          );
+          if (response.status === 429) {
+            throw new Error("Troppe richieste. Riprova più tardi.");
+          }
+          throw new Error(`Planning regeneration failed: ${response.status}`);
         }
 
-        const data = await response.json();
-        const plan = data.plan;
+        // Handle Server-Sent Events
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+
+        if (!reader) {
+          throw new Error("Failed to read streaming response for regeneration");
+        }
+
+        let finalPlan = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const eventData = JSON.parse(line.slice(6));
+
+                if (
+                  eventData.category === "planning_progress" ||
+                  [
+                    "analyzing_partners",
+                    "optimizing_geography",
+                    "creating_itinerary",
+                    "adding_recommendations",
+                    "finalizing_plan",
+                  ].includes(eventData.type)
+                ) {
+                  setPlanningProgress(prev => [...prev, eventData].slice(-10));
+                } else if (eventData.type === "planning_complete") {
+                  finalPlan = eventData.plan;
+                } else if (eventData.type === "planning_error") {
+                  throw new Error(eventData.message);
+                } else if (eventData.type === "planning_end") {
+                  break;
+                }
+              } catch (parseError) {
+                console.warn(
+                  "[PLANNING] Failed to parse SSE data during regeneration:",
+                  parseError
+                );
+              }
+            }
+          }
+        }
+
+        if (!finalPlan) {
+          throw new Error("No plan received from regeneration API");
+        }
 
         // Crea un messaggio di chat con il piano rigenerato
         const planMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `🔄 **Piano di Viaggio Aggiornato**\n\nHo rigenerato il piano utilizzando i ${selectedPartners.length} partner selezionati:\n\n${plan}`,
+          content: `🔄 **Piano di Viaggio Aggiornato**\n\nHo rigenerato il piano utilizzando i ${selectedPartners.length} partner selezionati.`,
           timestamp: new Date().toISOString(),
           metadata: {
+            type: "itinerary_plan",
+            plan: finalPlan,
             partnersReturned: selectedPartners.length,
             searchQuery: userQuery || "Piano di viaggio rigenerato",
           },
@@ -299,7 +357,7 @@ export function PlanningProvider({
         // Aggiungi il messaggio alla chat
         addMessage(planMessage);
 
-        setCurrentPlan(plan);
+        setCurrentPlan(finalPlan);
         console.log(
           "[PLANNING] Plan regenerated successfully and added to chat"
         );
@@ -312,6 +370,8 @@ export function PlanningProvider({
         );
       } finally {
         setIsGeneratingPlan(false);
+        setIsStreamingPlanning(false);
+        setPlanningProgress([]);
       }
     },
     [selectedPartners, addMessage]

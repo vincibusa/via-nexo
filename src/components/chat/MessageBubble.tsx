@@ -98,6 +98,19 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             className="whitespace-pre-wrap"
             dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
           />
+
+          {/* If the message is an itinerary plan, render the full plan from metadata */}
+          {message.metadata?.type === "itinerary_plan" &&
+            typeof message.metadata.plan === "string" && (
+              <div className="mt-4 border-t border-neutral-700 pt-4">
+                <div
+                  className="prose prose-invert max-w-none text-sm leading-relaxed whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{
+                    __html: formatMessage(message.metadata.plan),
+                  }}
+                />
+              </div>
+            )}
         </div>
 
         {/* Action buttons */}

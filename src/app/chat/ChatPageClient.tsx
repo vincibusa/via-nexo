@@ -10,17 +10,17 @@ import { NavigationBreadcrumb } from "@/components/page/NavigationBreadcrumb";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlanningProvider, usePlanning } from "@/contexts/PlanningContext";
 import type { User } from "@supabase/supabase-js";
+import type { UseChatReturn } from "@/hooks/useChat";
 
 interface ChatPageClientProps {
   initialUser: User | null;
 }
 
 // Inner component that has access to PlanningContext
-function ChatPageContent() {
+function ChatPageContent({ chat }: { chat: UseChatReturn }) {
   const {
     messages,
     sendMessage,
-    addMessage,
     isLoading,
     error,
     retryLastMessage,
@@ -32,7 +32,7 @@ function ChatPageContent() {
     startNewSession,
     agentProgress,
     isStreamingResponse,
-  } = useChat();
+  } = chat;
 
   const { planningProgress, isStreamingPlanning } = usePlanning();
 
@@ -102,11 +102,11 @@ export function ChatPageClient({ initialUser }: ChatPageClientProps) {
     }
   }, [initialUser, contextUser, forceSetUser]);
 
-  const { addMessage } = useChat();
+  const chat = useChat();
 
   return (
-    <PlanningProvider addMessage={addMessage}>
-      <ChatPageContent />
+    <PlanningProvider addMessage={chat.addMessage}>
+      <ChatPageContent chat={chat} />
     </PlanningProvider>
   );
 }
