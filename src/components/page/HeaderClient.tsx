@@ -32,9 +32,9 @@ import { LogoIcon, NotificationIcon } from "./Icons";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { createClientComponentClient } from "@/lib/supabase-client-unified";
+import { useAuth } from "@/contexts/AuthContext";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
-import type { UserProfile } from "@/lib/supabase-auth";
+import type { UserProfile } from "@/lib/auth-api";
 
 interface HeaderClientProps {
   initialUser: SupabaseUser | null;
@@ -49,9 +49,10 @@ export function HeaderClient({
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Use server-provided data directly (no AuthContext dependency)
+  // Use server-provided data directly but get signOut from context
   const user = initialUser;
   const userProfile = initialUserProfile;
+  const { signOut } = useAuth();
 
   console.log("[HEADER_CLIENT] Rendering with:", {
     user: user?.email || "null",
@@ -80,8 +81,8 @@ export function HeaderClient({
     setIsLoggingOut(true);
 
     try {
-      const supabase = createClientComponentClient();
-      await supabase.auth.signOut({ scope: "global" });
+      // Use the new API-based signOut
+      await signOut();
 
       // Clear local storage and redirect
       if (typeof window !== "undefined") {

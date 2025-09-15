@@ -95,11 +95,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { error } = await signUp(formData.email, formData.password, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phone: formData.phone,
-      });
+      // Combine first and last name for display name
+      const displayName = `${formData.firstName} ${formData.lastName}`.trim();
+      const { error } = await signUp(
+        formData.email,
+        formData.password,
+        displayName
+      );
 
       if (error) {
         if (error.message.includes("User already registered")) {
