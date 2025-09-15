@@ -59,14 +59,31 @@ export const SelectablePartnerCard = ({
     "https://images.unsplash.com/photo-1566073771259-6a8506099945";
 
   const handleCardClick = () => {
-    const url = `/partner/${partner.id}`;
+    // Check if this is a hotel with external booking URL
+    const externalUrl = partner.contact_info?.website;
+    const isBookingUrl =
+      externalUrl &&
+      (externalUrl.includes("booking.com") ||
+        externalUrl.includes("rapidapi") ||
+        externalUrl.startsWith("https://www.booking.com"));
+
+    const url = isBookingUrl ? externalUrl : `/partner/${partner.id}`;
+
     // Open in new tab/window when running in the browser
     if (typeof window !== "undefined") {
       const newWindow = window.open(url, "_blank", "noopener,noreferrer");
       if (newWindow) newWindow.opener = null;
     } else {
       // Fallback for non-browser environments
-      router.push(url);
+      if (isBookingUrl) {
+        // For external URLs in non-browser environments, we can't open them
+        console.warn(
+          "External URL cannot be opened in non-browser environment:",
+          url
+        );
+      } else {
+        router.push(url);
+      }
     }
   };
 

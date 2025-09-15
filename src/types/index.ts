@@ -37,6 +37,7 @@ export interface Partner {
   isVerified: boolean;
   createdAt: string;
   updatedAt: string;
+  externalUrl?: string; // URL esterno per prenotazioni (es. Booking.com)
 }
 
 export type PartnerType =
@@ -362,4 +363,68 @@ export interface MessageCreateResponse {
 export interface ApiErrorResponse {
   success: false;
   error: string;
+}
+
+// ===== RAPIDAPI BOOKING TYPES =====
+
+export interface RapidApiHotelSearchParams {
+  location: string;
+  checkinDate?: string; // YYYY-MM-DD format
+  checkoutDate?: string; // YYYY-MM-DD format
+  adults?: number;
+  rooms?: number;
+  children?: number;
+  currency?: string;
+}
+
+export interface RapidApiHotel {
+  id: string;
+  name: string;
+  description?: string;
+  location: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  images: string[];
+  price?: {
+    amount: number;
+    currency: string;
+    per_night?: boolean;
+  };
+  rating?: number;
+  review_count?: number;
+  amenities?: string[];
+  booking_url?: string;
+  availability?: boolean;
+}
+
+export interface RapidApiHotelResponse {
+  success: boolean;
+  data: RapidApiHotel[];
+  message: string;
+  total_results?: number;
+  search_context?: RapidApiHotelSearchParams;
+  error?: string;
+}
+
+// ===== DATE EXTRACTION TYPES =====
+
+export interface ExtractedDates {
+  checkinDate: string; // YYYY-MM-DD format
+  checkoutDate: string; // YYYY-MM-DD format
+  guests?: number;
+  rooms?: number;
+  confidence: "high" | "medium" | "low";
+  reasoning: string;
+}
+
+export interface DateExtractionResult {
+  success: boolean;
+  dates?: ExtractedDates;
+  error?: string;
+  fallbackUsed: boolean;
 }
