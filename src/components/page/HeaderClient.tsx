@@ -93,6 +93,9 @@ export function HeaderClient({
     } catch (error) {
       console.error("[HEADER_CLIENT] Error during logout:", error);
     } finally {
+      //ricarica la pagina per assicurarsi che lo stato sia aggiornato
+      window.location.reload();
+
       setIsLoggingOut(false);
     }
   };

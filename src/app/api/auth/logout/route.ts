@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server-auth";
 import { cookies } from "next/headers";
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
 

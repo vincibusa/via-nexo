@@ -36,7 +36,7 @@ export default function RegisterPage() {
   const { signUp, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/chat";
+  const redirectTo = searchParams.get("redirectTo") || "/";
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -393,7 +393,7 @@ export default function RegisterPage() {
                 <p className="text-sm text-neutral-400">
                   Hai già un account?{" "}
                   <Link
-                    href={`/login${redirectTo !== "/chat" ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""}`}
+                    href={`/login${redirectTo !== "/" ? `?redirectTo=${encodeURIComponent(redirectTo)}` : ""}`}
                     className="text-primary-400 hover:text-primary-300 underline"
                   >
                     Accedi qui

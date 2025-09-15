@@ -1,11 +1,21 @@
 /**
  * Next.js Middleware
- * Route protection, redirects, and request processing
+ * Route protection, redirects, and automatic token refresh
  */
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+
+// ===== TYPES =====
+
+interface AuthUser {
+  id: string;
+  email: string;
+  emailConfirmed: boolean;
+  role?: string;
+}
+
+// ===== CONFIGURATION =====
 
 // Paths that require authentication
 const protectedRoutes = [
@@ -25,11 +35,17 @@ const publicApiRoutes = [
   "/api/partners",
   "/api/destinations",
   "/api/health",
+  "/api/auth", // Auth endpoints are public
 ];
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 100;
+
+// Token refresh thresholds
+const TOKEN_REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
+
+// ===== RATE LIMITING =====
 
 // Simple in-memory rate limiting store (use Redis in production)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -72,170 +88,124 @@ function cleanupRateLimitStore() {
 // Cleanup rate limit store every 5 minutes
 setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
 
+// ===== AUTHENTICATION HELPERS =====
+
+/**
+ * Extract JWT payload without verification (for expiry check)
+ */
+function parseJwtPayload(
+  token: string
+): {
+  exp?: number;
+  sub?: string;
+  email?: string;
+  email_confirmed_at?: string;
+} | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+
+    const payload = parts[1];
+    const decoded = JSON.parse(Buffer.from(payload, "base64").toString());
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check if token needs refresh based on expiry time
+ */
+function shouldRefreshToken(accessToken: string): boolean {
+  const payload = parseJwtPayload(accessToken);
+  if (!payload?.exp) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  const timeUntilExpiry = (payload.exp - now) * 1000;
+
+  return timeUntilExpiry <= TOKEN_REFRESH_THRESHOLD;
+}
+
+/**
+ * Get current user from cookies directly (without API call to avoid recursion)
+ */
+function getCurrentUserFromCookies(request: NextRequest): AuthUser | null {
+  const accessTokenCookie = request.cookies.get("supabase-access-token");
+
+  if (!accessTokenCookie?.value) {
+    return null;
+  }
+
+  try {
+    const payload = parseJwtPayload(accessTokenCookie.value);
+    if (!payload) return null;
+
+    return {
+      id: payload.sub || "",
+      email: payload.email || "",
+      emailConfirmed: payload.email_confirmed_at ? true : false,
+      // Role will be handled by pages that need it
+    };
+  } catch (error) {
+    console.error("[MIDDLEWARE] Error parsing user from token:", error);
+    return null;
+  }
+}
+
+/**
+ * Check if access token is expired
+ */
+function isTokenExpired(accessToken: string): boolean {
+  const payload = parseJwtPayload(accessToken);
+  if (!payload?.exp) return true;
+
+  const now = Math.floor(Date.now() / 1000);
+  return now >= payload.exp;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  // Create Supabase client for authentication
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          const cookieOptions = {
-            ...options,
-            path: options.path || "/",
-            httpOnly: options.httpOnly !== false,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: (options.sameSite as "lax" | "strict" | "none") || "lax",
-            maxAge: options.maxAge || 60 * 60 * 24 * 7, // 7 days default
-          };
+  console.log(`[MIDDLEWARE] Processing: ${pathname}`);
 
-          request.cookies.set({
-            name,
-            value,
-            ...cookieOptions,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...cookieOptions,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          const cookieOptions = {
-            ...options,
-            path: options.path || "/",
-            expires: new Date(0),
-            maxAge: 0,
-          };
+  // ===== AUTHENTICATION =====
 
-          request.cookies.set({
-            name,
-            value: "",
-            ...cookieOptions,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: "",
-            ...cookieOptions,
-          });
-        },
-      },
-    }
-  );
+  // Get current user authentication status from cookies directly
+  let user: AuthUser | null = null;
+  const accessTokenCookie = request.cookies.get("supabase-access-token");
 
-  // Get user authentication status with session refresh
-  const {
-    data: { user: initialUser },
-    error: userError,
-  } = await supabase.auth.getUser();
-  let user = initialUser;
+  if (accessTokenCookie?.value) {
+    if (isTokenExpired(accessTokenCookie.value)) {
+      console.log("[MIDDLEWARE] Access token expired, user needs to re-login");
+      // Clear expired cookies
+      response.cookies.delete("supabase-access-token");
+      response.cookies.delete("supabase-refresh-token");
+    } else {
+      // Token is valid, get user from it
+      user = getCurrentUserFromCookies(request);
 
-  // If no user but we have session cookies, try to refresh the session
-  if (!user && !userError) {
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-      if (session && !sessionError) {
-        // Session exists, refresh it
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        user = refreshData.user;
-      }
-    } catch (refreshError) {
-      console.warn("[MIDDLEWARE] Session refresh failed:", refreshError);
-    }
-  }
-
-  const cookies = request.cookies.getAll();
-  const supabaseCookies = cookies.filter(
-    cookie => cookie.name.includes("supabase") || cookie.name.includes("sb-")
-  );
-
-  // Enhanced debugging with all cookie names
-  console.log(
-    `[MIDDLEWARE] Path: ${pathname}, User: ${user ? user.email : "not logged in"}, Total Cookies: ${cookies.length}`
-  );
-  console.log(
-    `[MIDDLEWARE] All cookies: ${cookies.map(c => c.name).join(", ")}`
-  );
-  console.log(
-    `[MIDDLEWARE] Supabase Cookies: ${supabaseCookies.map(c => `${c.name}=${c.value?.substring(0, 20)}...`).join(", ")}`
-  );
-
-  // Debug specific cookie issues and attempt fix
-  if (user && supabaseCookies.length === 0) {
-    console.warn(
-      "[MIDDLEWARE] ⚠️ User authenticated but no Supabase cookies found! Attempting to recreate session cookies..."
-    );
-
-    // Force session refresh to create cookies
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
+      // Check if token needs refresh (but don't do it here to avoid recursion)
+      if (shouldRefreshToken(accessTokenCookie.value)) {
         console.log(
-          "[MIDDLEWARE] 🔄 Session found, cookies should be set automatically"
+          "[MIDDLEWARE] Token will need refresh soon, client should handle this"
         );
-
-        // Force cookie creation through a refresh
-        const refreshResult = await supabase.auth.refreshSession();
-        if (refreshResult.data.session) {
-          console.log("[MIDDLEWARE] ✅ Session refreshed successfully");
-        }
+        // Add header to indicate refresh needed
+        response.headers.set("X-Token-Refresh-Needed", "true");
       }
-    } catch (forceError) {
-      console.error(
-        "[MIDDLEWARE] ❌ Failed to force session refresh:",
-        forceError
-      );
-    }
-  }
-
-  if (!user && supabaseCookies.length > 0) {
-    console.warn(
-      "[MIDDLEWARE] ⚠️ Supabase cookies exist but no user found. Attempting session recovery..."
-    );
-  }
-
-  // Get user profile for role checking
-  let userProfile = null;
-  if (user) {
-    try {
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-      userProfile = data;
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
     }
   }
 
   const isAuthenticated = !!user;
-  const isAdmin = userProfile?.role === "admin";
+  const isAdmin = false; // We'll handle admin check in pages that need it
+
+  console.log(
+    `[MIDDLEWARE] User: ${user?.email || "not authenticated"}, Token: ${accessTokenCookie?.value ? "present" : "missing"}`
+  );
 
   // Security headers
   response.headers.set("X-Frame-Options", "DENY");
@@ -284,8 +254,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ===== ROUTE HANDLING =====
+
   // Skip middleware for public API routes
   if (publicApiRoutes.some(route => pathname.startsWith(route))) {
+    console.log(`[MIDDLEWARE] Skipping public API route: ${pathname}`);
     return response;
   }
 
@@ -300,8 +273,6 @@ export async function middleware(request: NextRequest) {
   ) {
     return response;
   }
-
-  // Authentication is now handled above via Supabase
 
   // Redirect to login for protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
@@ -331,11 +302,12 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     if (isAuthenticated) {
-      console.log(
-        `[MIDDLEWARE] Redirecting authenticated user from ${pathname} to /chat`
-      );
       const redirect = request.nextUrl.searchParams.get("redirectTo");
-      return NextResponse.redirect(new URL(redirect || "/chat", request.url));
+      const targetUrl = redirect || "/"; // Redirect to home page instead of chat
+      console.log(
+        `[MIDDLEWARE] Redirecting authenticated user from ${pathname} to ${targetUrl}`
+      );
+      return NextResponse.redirect(new URL(targetUrl, request.url));
     }
   }
 
