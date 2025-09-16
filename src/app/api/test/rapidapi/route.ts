@@ -39,6 +39,58 @@ export async function GET(request: NextRequest) {
 
     const apiResult = await rapidApiBookingService.searchHotels(searchParams);
 
+    // Test 3: Availability checking (if we have dates and hotels)
+    let availabilityResult = null;
+    if (
+      searchParams.checkinDate &&
+      searchParams.checkoutDate &&
+      apiResult.data.length > 0
+    ) {
+      console.log(`[TEST_RAPIDAPI] Testing availability check...`);
+      const firstHotel = apiResult.data[0];
+      try {
+        availabilityResult =
+          await rapidApiBookingService.checkHotelAvailability(
+            firstHotel.id,
+            searchParams.checkinDate,
+            searchParams.checkoutDate,
+            "EUR"
+          );
+      } catch (error) {
+        console.error(`[TEST_RAPIDAPI] Availability check failed:`, error);
+        availabilityResult = {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Availability check failed",
+        };
+      }
+    }
+
+    // Test 4: Hotel details fetching (if we have hotels)
+    let hotelDetailsResult = null;
+    if (apiResult.data.length > 0) {
+      console.log(`[TEST_RAPIDAPI] Testing hotel details...`);
+      const firstHotel = apiResult.data[0];
+      try {
+        hotelDetailsResult = await rapidApiBookingService.getHotelDetails(
+          firstHotel.id,
+          searchParams.checkinDate,
+          searchParams.checkoutDate,
+          2,
+          1,
+          0,
+          "EUR"
+        );
+      } catch (error) {
+        console.error(`[TEST_RAPIDAPI] Hotel details failed:`, error);
+        hotelDetailsResult = {
+          error:
+            error instanceof Error ? error.message : "Hotel details failed",
+        };
+      }
+    }
+
     // Return comprehensive test results
     return NextResponse.json({
       success: true,
@@ -64,6 +116,8 @@ export async function GET(request: NextRequest) {
               }
             : null,
         },
+        availability_check: availabilityResult,
+        hotel_details: hotelDetailsResult,
       },
       search_params: searchParams,
       original_query: query,

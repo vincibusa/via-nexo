@@ -36,6 +36,23 @@ export interface RapidApiHotel {
   amenities?: string[];
   booking_url?: string;
   availability?: boolean;
+  rapid_api_data?: {
+    hotel_details?: HotelDetails;
+    real_time_price?: {
+      amount: number;
+      currency: string;
+      per_night?: boolean;
+    };
+    availability?: boolean;
+    review_count?: number;
+    sustainability?: {
+      level?: string;
+      title?: string;
+      description?: string;
+    };
+    breakfast_included?: boolean;
+    available_rooms?: number;
+  };
 }
 
 export interface RapidApiHotelResponse {
@@ -45,6 +62,71 @@ export interface RapidApiHotelResponse {
   total_results?: number;
   search_context?: RapidApiHotelSearchParams;
   error?: string;
+}
+
+export interface AvailabilityDate {
+  date: string; // YYYY-MM-DD
+  price?: {
+    amount: number;
+    currency: string;
+  };
+  available: boolean;
+}
+
+export interface HotelAvailability {
+  hotelId: string;
+  available: boolean;
+  lengthsOfStay: number[];
+  avDates: AvailabilityDate[];
+  error?: string;
+}
+
+export interface HotelDetails {
+  hotel_id: string;
+  hotel_name: string;
+  url: string; // Direct Booking.com URL
+  address: string;
+  city: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  review_score?: number;
+  review_count?: number;
+  photos: string[];
+  facilities: Array<{
+    name: string;
+    icon?: string;
+  }>;
+  room_highlights: string[];
+  price_breakdown?: {
+    gross_amount: {
+      value: number;
+      currency: string;
+    };
+    gross_amount_per_night: {
+      value: number;
+      currency: string;
+    };
+    all_inclusive_amount?: {
+      value: number;
+      currency: string;
+    };
+    charges_details?: {
+      amount: {
+        value: number;
+        currency: string;
+      };
+      translated_copy: string;
+    };
+  };
+  sustainability?: {
+    level?: string;
+    title?: string;
+    description?: string;
+  };
+  accommodation_type?: string;
+  available_rooms?: number;
+  breakfast_included?: boolean;
 }
 
 class RapidApiBookingService {
@@ -578,7 +660,447 @@ class RapidApiBookingService {
     return `${baseUrl}?${urlParams.toString()}`;
   }
 
-  async getHotelDetails(hotelId: string): Promise<RapidApiHotel | null> {
+  async checkHotelAvailability(
+    hotelId: string,
+    checkinDate: string,
+    checkoutDate: string,
+    currency = "EUR"
+  ): Promise<HotelAvailability> {
+    console.log(
+      `[RAPIDAPI_BOOKING] Checking availability for hotel ${hotelId}:`,
+      {
+        checkinDate,
+        checkoutDate,
+        currency,
+      }
+    );
+
+    if (!this.apiKey) {
+      return {
+        hotelId,
+        available: false,
+        lengthsOfStay: [],
+        avDates: [],
+        error: "RapidAPI key not configured",
+      };
+    }
+
+    try {
+      const response = await this.makeRequest("/hotels/getAvailability", {
+        hotel_id: hotelId,
+        currency_code: currency,
+        location: "IT",
+      });
+
+      // Parse response from booking-com15 API
+      const availabilityData = response as {
+        status?: boolean;
+        data?: {
+          lengthsOfStay?: number[];
+          avDates?: Array<{
+            date?: string;
+            price?: {
+              amount?: number;
+              currency?: string;
+            };
+            available?: boolean;
+          }>;
+        };
+        lengthsOfStay?: number[];
+        avDates?: unknown[];
+      };
+
+      if (!availabilityData) {
+        throw new Error("No availability data received");
+      }
+
+      // Handle booking-com15 format
+      let lengthsOfStay: number[] = [];
+      let avDates: AvailabilityDate[] = [];
+
+      if (availabilityData.status && availabilityData.data) {
+        lengthsOfStay = availabilityData.data.lengthsOfStay || [];
+        avDates = (availabilityData.data.avDates || []).map(
+          (dateInfo: unknown) => {
+            const date = dateInfo as {
+              date?: string;
+              price?: { amount?: number; currency?: string };
+              available?: boolean;
+            };
+            return {
+              date: date.date || "",
+              price: date.price
+                ? {
+                    amount: date.price.amount || 0,
+                    currency: date.price.currency || currency,
+                  }
+                : undefined,
+              available: date.available !== false,
+            };
+          }
+        );
+      } else if (availabilityData.lengthsOfStay) {
+        // Direct format fallback
+        lengthsOfStay = availabilityData.lengthsOfStay;
+        avDates = (availabilityData.avDates || []).map((dateInfo: unknown) => {
+          const date = dateInfo as {
+            date?: string;
+            price?: { amount?: number; currency?: string };
+            available?: boolean;
+          };
+          return {
+            date: date.date || "",
+            price: date.price
+              ? {
+                  amount: date.price.amount || 0,
+                  currency: date.price.currency || currency,
+                }
+              : undefined,
+            available: date.available !== false,
+          };
+        });
+      }
+
+      // Calculate requested stay length
+      const checkin = new Date(checkinDate);
+      const checkout = new Date(checkoutDate);
+      const stayLength = Math.ceil(
+        (checkout.getTime() - checkin.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // Check if the requested stay length is available
+      const lengthAvailable = lengthsOfStay.includes(stayLength);
+
+      // Check if all requested dates are available
+      const requestedDates: string[] = [];
+      for (
+        let d = new Date(checkin);
+        d < checkout;
+        d.setDate(d.getDate() + 1)
+      ) {
+        requestedDates.push(d.toISOString().split("T")[0]);
+      }
+
+      const datesAvailable = requestedDates.every(requestedDate => {
+        const dateAvailability = avDates.find(
+          avDate => avDate.date === requestedDate
+        );
+        return dateAvailability && dateAvailability.available;
+      });
+
+      const isAvailable = lengthAvailable && datesAvailable;
+
+      console.log(
+        `[RAPIDAPI_BOOKING] Availability check for hotel ${hotelId}:`,
+        {
+          stayLength,
+          lengthAvailable,
+          datesAvailable,
+          isAvailable,
+          requestedDates,
+          availableLengths: lengthsOfStay,
+          availableDatesCount: avDates.filter(d => d.available).length,
+        }
+      );
+
+      return {
+        hotelId,
+        available: isAvailable,
+        lengthsOfStay,
+        avDates,
+      };
+    } catch (error) {
+      console.error(
+        `[RAPIDAPI_BOOKING] Availability check failed for hotel ${hotelId}:`,
+        error
+      );
+
+      return {
+        hotelId,
+        available: false,
+        lengthsOfStay: [],
+        avDates: [],
+        error:
+          error instanceof Error ? error.message : "Availability check failed",
+      };
+    }
+  }
+
+  async getHotelDetails(
+    hotelId: string,
+    checkinDate?: string,
+    checkoutDate?: string,
+    adults = 2,
+    rooms = 1,
+    children = 0,
+    currency = "EUR"
+  ): Promise<HotelDetails | null> {
+    console.log(`[RAPIDAPI_BOOKING] Getting hotel details for ${hotelId}:`, {
+      checkinDate,
+      checkoutDate,
+      adults,
+      rooms,
+      children,
+      currency,
+    });
+
+    if (!this.apiKey) {
+      console.warn(
+        "[RAPIDAPI_BOOKING] API key not configured for hotel details"
+      );
+      return null;
+    }
+
+    try {
+      const params: Record<string, unknown> = {
+        hotel_id: hotelId,
+        adults,
+        room_qty: rooms,
+        units: "metric",
+        temperature_unit: "c",
+        languagecode: "en-us",
+        currency_code: currency,
+        location: "IT",
+      };
+
+      if (children > 0) {
+        params.children_age = "0,17"; // Default children ages
+      }
+
+      if (checkinDate) {
+        params.arrival_date = checkinDate;
+      }
+
+      if (checkoutDate) {
+        params.departure_date = checkoutDate;
+      }
+
+      const response = await this.makeRequest(
+        "/hotels/getHotelDetails",
+        params
+      );
+
+      console.log(`[RAPIDAPI_BOOKING] Hotel details response for ${hotelId}:`, {
+        hasData: !!response,
+        status: (response as { status?: boolean })?.status,
+      });
+
+      return this.transformHotelDetailsResponse(response);
+    } catch (error) {
+      console.error(
+        `[RAPIDAPI_BOOKING] Hotel details failed for ${hotelId}:`,
+        error
+      );
+      return null;
+    }
+  }
+
+  private transformHotelDetailsResponse(
+    response: unknown
+  ): HotelDetails | null {
+    const apiResponse = response as {
+      status?: boolean;
+      data?: {
+        hotel_id?: number;
+        hotel_name?: string;
+        url?: string;
+        address?: string;
+        city?: string;
+        country_trans?: string;
+        latitude?: number;
+        longitude?: number;
+        review_nr?: number;
+        facilities_block?: {
+          facilities?: Array<{
+            name?: string;
+            icon?: string;
+          }>;
+        };
+        product_price_breakdown?: {
+          gross_amount?: {
+            value?: number;
+            currency?: string;
+          };
+          gross_amount_per_night?: {
+            value?: number;
+            currency?: string;
+          };
+          all_inclusive_amount?: {
+            value?: number;
+            currency?: string;
+          };
+          charges_details?: {
+            amount?: {
+              value?: number;
+              currency?: string;
+            };
+            translated_copy?: string;
+          };
+        };
+        sustainability?: {
+          sustainability_level?: {
+            name?: string;
+            title?: string;
+          };
+          hotel_page?: {
+            title?: string;
+            description?: string;
+          };
+        };
+        accommodation_type_name?: string;
+        available_rooms?: number;
+        hotel_include_breakfast?: number;
+        property_highlight_strip?: Array<{
+          name?: string;
+          icon_list?: Array<{
+            icon?: string;
+          }>;
+        }>;
+        rooms?: Record<
+          string,
+          {
+            photos?: Array<{
+              url_max750?: string;
+              url_original?: string;
+            }>;
+            highlights?: Array<{
+              translated_name?: string;
+              icon?: string;
+            }>;
+          }
+        >;
+      };
+    };
+
+    if (!apiResponse?.status || !apiResponse.data) {
+      console.warn(
+        "[RAPIDAPI_BOOKING] Invalid hotel details response:",
+        apiResponse
+      );
+      return null;
+    }
+
+    const data = apiResponse.data;
+
+    // Extract photos from rooms
+    const photos: string[] = [];
+    if (data.rooms) {
+      Object.values(data.rooms).forEach(room => {
+        if (room.photos) {
+          room.photos.slice(0, 5).forEach(photo => {
+            if (photo.url_max750) {
+              photos.push(photo.url_max750);
+            } else if (photo.url_original) {
+              photos.push(photo.url_original);
+            }
+          });
+        }
+      });
+    }
+
+    // Extract facilities
+    const facilities = (data.facilities_block?.facilities || []).map(
+      facility => ({
+        name: facility.name || "Unknown",
+        icon: facility.icon,
+      })
+    );
+
+    // Extract room highlights
+    const room_highlights: string[] = [];
+    if (data.rooms) {
+      Object.values(data.rooms).forEach(room => {
+        if (room.highlights) {
+          room.highlights.forEach(highlight => {
+            if (highlight.translated_name) {
+              room_highlights.push(highlight.translated_name);
+            }
+          });
+        }
+      });
+    }
+
+    // Add property highlights as well
+    if (data.property_highlight_strip) {
+      data.property_highlight_strip.forEach(highlight => {
+        if (highlight.name && !room_highlights.includes(highlight.name)) {
+          room_highlights.push(highlight.name);
+        }
+      });
+    }
+
+    // Remove duplicates
+    const uniqueHighlights = [...new Set(room_highlights)];
+
+    return {
+      hotel_id: String(data.hotel_id || ""),
+      hotel_name: data.hotel_name || "Hotel name not available",
+      url: data.url || "",
+      address: data.address || "",
+      city: data.city || "",
+      country: data.country_trans || "",
+      latitude: data.latitude || 0,
+      longitude: data.longitude || 0,
+      review_count: data.review_nr,
+      photos: [...new Set(photos)], // Remove duplicates
+      facilities,
+      room_highlights: uniqueHighlights.slice(0, 10), // Limit to 10 highlights
+      price_breakdown: data.product_price_breakdown
+        ? {
+            gross_amount: {
+              value: data.product_price_breakdown.gross_amount?.value || 0,
+              currency:
+                data.product_price_breakdown.gross_amount?.currency || "EUR",
+            },
+            gross_amount_per_night: {
+              value:
+                data.product_price_breakdown.gross_amount_per_night?.value || 0,
+              currency:
+                data.product_price_breakdown.gross_amount_per_night?.currency ||
+                "EUR",
+            },
+            all_inclusive_amount: data.product_price_breakdown
+              .all_inclusive_amount
+              ? {
+                  value:
+                    data.product_price_breakdown.all_inclusive_amount.value ||
+                    0,
+                  currency:
+                    data.product_price_breakdown.all_inclusive_amount
+                      .currency || "EUR",
+                }
+              : undefined,
+            charges_details: data.product_price_breakdown.charges_details
+              ? {
+                  amount: {
+                    value:
+                      data.product_price_breakdown.charges_details.amount
+                        ?.value || 0,
+                    currency:
+                      data.product_price_breakdown.charges_details.amount
+                        ?.currency || "EUR",
+                  },
+                  translated_copy:
+                    data.product_price_breakdown.charges_details
+                      .translated_copy || "",
+                }
+              : undefined,
+          }
+        : undefined,
+      sustainability: data.sustainability
+        ? {
+            level: data.sustainability.sustainability_level?.name,
+            title: data.sustainability.hotel_page?.title,
+            description: data.sustainability.hotel_page?.description,
+          }
+        : undefined,
+      accommodation_type: data.accommodation_type_name,
+      available_rooms: data.available_rooms,
+      breakfast_included: data.hotel_include_breakfast === 1,
+    };
+  }
+
+  async getHotelDetailsLegacy(hotelId: string): Promise<RapidApiHotel | null> {
     try {
       const response = await this.makeRequest("/hotels/details", {
         hotel_id: hotelId,

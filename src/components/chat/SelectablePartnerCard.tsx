@@ -58,9 +58,19 @@ export const SelectablePartnerCard = ({
     partner.images?.[0] ||
     "https://images.unsplash.com/photo-1566073771259-6a8506099945";
 
+  // Extract detailed hotel information if available
+  const hotelDetails = partner.rapid_api_data?.hotel_details;
+  const sustainability = hotelDetails?.sustainability;
+  const priceBreakdown = hotelDetails?.price_breakdown;
+  const breakfastIncluded = hotelDetails?.breakfast_included;
+  const availableRooms = hotelDetails?.available_rooms;
+
   const handleCardClick = () => {
-    // Check if this is a hotel with external booking URL
-    const externalUrl = partner.contact_info?.website;
+    // Check for direct Booking.com URL from hotel details first
+    const directBookingUrl = hotelDetails?.url;
+    const fallbackUrl = partner.contact_info?.website;
+
+    const externalUrl = directBookingUrl || fallbackUrl;
     const isBookingUrl =
       externalUrl &&
       (externalUrl.includes("booking.com") ||
@@ -154,10 +164,24 @@ export const SelectablePartnerCard = ({
               <span>📍</span>
               <span>{partner.location}</span>
             </div>
-            <div className="text-primary-400 text-xs font-medium">
-              {PriceRangeLabels[
-                partner.price_range as keyof typeof PriceRangeLabels
-              ] || partner.price_range}
+            <div className="flex flex-col items-end">
+              {priceBreakdown?.gross_amount_per_night ? (
+                <div className="text-primary-400 text-sm font-semibold">
+                  €{priceBreakdown.gross_amount_per_night.value.toFixed(0)}
+                  /night
+                </div>
+              ) : (
+                <div className="text-primary-400 text-xs font-medium">
+                  {PriceRangeLabels[
+                    partner.price_range as keyof typeof PriceRangeLabels
+                  ] || partner.price_range}
+                </div>
+              )}
+              {availableRooms && availableRooms > 0 && (
+                <div className="text-xs text-green-400">
+                  {availableRooms} rooms left
+                </div>
+              )}
             </div>
           </div>
 
@@ -166,44 +190,90 @@ export const SelectablePartnerCard = ({
             {truncateDescription(partner.description)}
           </p>
 
-          {/* Amenities/Features (prime 3) */}
+          {/* Hotel-specific badges */}
+          {(sustainability ||
+            breakfastIncluded ||
+            priceBreakdown?.charges_details) && (
+            <div className="mb-3 flex flex-wrap gap-1">
+              {sustainability && (
+                <span className="rounded-md border border-green-600/30 bg-green-700/30 px-2 py-1 text-xs text-green-300">
+                  🌱{" "}
+                  {sustainability.title ||
+                    `Sustainable ${sustainability.level}`}
+                </span>
+              )}
+              {breakfastIncluded && (
+                <span className="rounded-md border border-orange-600/30 bg-orange-700/30 px-2 py-1 text-xs text-orange-300">
+                  🍳 Breakfast included
+                </span>
+              )}
+              {priceBreakdown?.charges_details && (
+                <span className="rounded-md border border-blue-600/30 bg-blue-700/30 px-2 py-1 text-xs text-blue-300">
+                  💶 +€{priceBreakdown.charges_details.amount.value.toFixed(0)}{" "}
+                  taxes
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Amenities/Features */}
           {partner.amenities && partner.amenities.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {partner.amenities.slice(0, 3).map((amenity, index) => (
-                <span
-                  key={index}
-                  className="rounded-md bg-neutral-700 px-2 py-1 text-xs text-neutral-300"
-                >
-                  {amenity}
-                </span>
-              ))}
-              {partner.amenities.length > 3 && (
+              {/* Show more amenities for hotels with detailed information */}
+              {partner.amenities
+                .slice(0, hotelDetails ? 6 : 3)
+                .map((amenity, index) => (
+                  <span
+                    key={index}
+                    className="rounded-md bg-neutral-700 px-2 py-1 text-xs text-neutral-300"
+                  >
+                    {amenity}
+                  </span>
+                ))}
+              {partner.amenities.length > (hotelDetails ? 6 : 3) && (
                 <span className="px-2 py-1 text-xs text-neutral-500">
-                  +{partner.amenities.length - 3} more
+                  +{partner.amenities.length - (hotelDetails ? 6 : 3)} more
                 </span>
               )}
             </div>
           )}
 
           {/* Contatti (se disponibili) */}
-          {partner.contact_info && (
+          {(hotelDetails?.url || partner.contact_info) && (
             <div className="mt-3 flex items-center gap-3 border-t border-neutral-700 pt-3">
-              {partner.contact_info.website && (
+              {/* Prioritize direct Booking.com URL */}
+              {hotelDetails?.url ? (
                 <div
                   onClick={e => {
                     e.stopPropagation();
                     window.open(
-                      partner.contact_info!.website!,
+                      hotelDetails.url,
                       "_blank",
                       "noopener,noreferrer"
                     );
                   }}
-                  className="text-primary-400 hover:text-primary-300 flex cursor-pointer items-center gap-1 text-sm transition-colors"
+                  className="text-primary-400 hover:text-primary-300 flex cursor-pointer items-center gap-1 text-sm font-medium transition-colors"
                 >
-                  🌐 Website
+                  🏨 Book on Booking.com
                 </div>
+              ) : (
+                partner.contact_info?.website && (
+                  <div
+                    onClick={e => {
+                      e.stopPropagation();
+                      window.open(
+                        partner.contact_info!.website!,
+                        "_blank",
+                        "noopener,noreferrer"
+                      );
+                    }}
+                    className="text-primary-400 hover:text-primary-300 flex cursor-pointer items-center gap-1 text-sm transition-colors"
+                  >
+                    🌐 Website
+                  </div>
+                )
               )}
-              {partner.contact_info.phone && (
+              {partner.contact_info?.phone && (
                 <div
                   onClick={e => {
                     e.stopPropagation();

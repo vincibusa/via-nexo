@@ -137,6 +137,23 @@ export interface PartnerData {
     email?: string;
     website?: string;
   };
+  rapid_api_data?: {
+    hotel_details?: HotelDetails;
+    real_time_price?: {
+      amount: number;
+      currency: string;
+      per_night?: boolean;
+    };
+    availability?: boolean;
+    review_count?: number;
+    sustainability?: {
+      level?: string;
+      title?: string;
+      description?: string;
+    };
+    breakfast_included?: boolean;
+    available_rooms?: number;
+  };
 }
 
 export interface ChatSession {
@@ -427,4 +444,71 @@ export interface DateExtractionResult {
   dates?: ExtractedDates;
   error?: string;
   fallbackUsed: boolean;
+}
+
+// ===== HOTEL AVAILABILITY TYPES =====
+
+export interface AvailabilityDate {
+  date: string; // YYYY-MM-DD
+  price?: {
+    amount: number;
+    currency: string;
+  };
+  available: boolean;
+}
+
+export interface HotelAvailability {
+  hotelId: string;
+  available: boolean;
+  lengthsOfStay: number[];
+  avDates: AvailabilityDate[];
+  error?: string;
+}
+
+export interface HotelDetails {
+  hotel_id: string;
+  hotel_name: string;
+  url: string; // Direct Booking.com URL
+  address: string;
+  city: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  review_score?: number;
+  review_count?: number;
+  photos: string[];
+  facilities: Array<{
+    name: string;
+    icon?: string;
+  }>;
+  room_highlights: string[];
+  price_breakdown?: {
+    gross_amount: {
+      value: number;
+      currency: string;
+    };
+    gross_amount_per_night: {
+      value: number;
+      currency: string;
+    };
+    all_inclusive_amount?: {
+      value: number;
+      currency: string;
+    };
+    charges_details?: {
+      amount: {
+        value: number;
+        currency: string;
+      };
+      translated_copy: string;
+    };
+  };
+  sustainability?: {
+    level?: string;
+    title?: string;
+    description?: string;
+  };
+  accommodation_type?: string;
+  available_rooms?: number;
+  breakfast_included?: boolean;
 }
