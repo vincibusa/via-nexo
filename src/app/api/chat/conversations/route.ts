@@ -1,22 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-auth";
+import { requireAuth } from "@/lib/server-auth-utils";
+import { supabase } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized", success: false },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth();
 
     // Get user's conversations with message count
     const { data: conversations, error } = await supabase
@@ -68,28 +56,23 @@ export async function GET() {
   } catch (error) {
     console.error("API error in GET /api/chat/conversations:", error);
     return NextResponse.json(
-      { error: "Internal server error", success: false },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        success: false,
+      },
+      {
+        status:
+          error instanceof Error && error.message.startsWith("Unauthorized")
+            ? 401
+            : 500,
+      }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized", success: false },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth();
 
     // Parse request body
     const body = await request.json();
@@ -147,8 +130,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("API error in POST /api/chat/conversations:", error);
     return NextResponse.json(
-      { error: "Internal server error", success: false },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+        success: false,
+      },
+      {
+        status:
+          error instanceof Error && error.message.startsWith("Unauthorized")
+            ? 401
+            : 500,
+      }
     );
   }
 }

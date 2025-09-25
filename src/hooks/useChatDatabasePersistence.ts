@@ -229,10 +229,28 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
         ...(message.partners && { partners: message.partners }),
       };
 
+      // Validate content before sending to API
+      if (
+        !message.content ||
+        typeof message.content !== "string" ||
+        message.content.trim().length === 0
+      ) {
+        console.log(
+          "[CHAT_PERSISTENCE] Skipping database save for message with empty content:",
+          {
+            conversationId,
+            role: message.role,
+            contentLength: message.content?.length,
+            hasMetadata: !!message.metadata,
+          }
+        );
+        return;
+      }
+
       const requestData: CreateMessageRequest = {
         conversationId,
         role: message.role,
-        content: message.content,
+        content: message.content.trim(),
         metadata,
       };
 
@@ -506,7 +524,15 @@ export function useChatDatabasePersistence(): UseChatDatabasePersistenceReturn {
         if (session) {
           const newMessages = messages.slice(session.messages.length);
 
-          for (const message of newMessages) {
+          // Filter out messages with empty content before saving to database
+          const validMessages = newMessages.filter(
+            msg =>
+              msg.content &&
+              typeof msg.content === "string" &&
+              msg.content.trim().length > 0
+          );
+
+          for (const message of validMessages) {
             await saveMessageToDatabase(sessionId, message);
           }
         }

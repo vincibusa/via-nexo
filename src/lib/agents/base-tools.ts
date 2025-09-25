@@ -2,6 +2,13 @@ import { tool } from "@openai/agents";
 import { z } from "zod";
 import { supabase } from "../supabase-server";
 import { generateEmbeddings } from "../openai";
+import { rapidApiBookingService } from "../rapidapi-booking";
+import { extractDatesFromQuery } from "../date-extraction";
+import type {
+  HotelAvailability,
+  AvailabilityDate,
+  HotelDetails,
+} from "../../types";
 
 // ===== HOTEL TOOLS =====
 
@@ -194,6 +201,410 @@ export const hotelVectorSearchTool = tool({
             ? error.message
             : "Hotel semantic search failed",
         data: [],
+      };
+    }
+  },
+});
+
+// ===== RAPIDAPI HOTEL TOOLS =====
+
+export const rapidApiHotelSearchTool = tool({
+  name: "search_hotels_rapidapi",
+  description:
+    "Search hotels with real-time availability using RapidAPI Booking.com integration",
+  parameters: z.object({
+    query: z
+      .string()
+      .describe(
+        "Natural language search query for hotels with location and dates"
+      ),
+    location: z.string().describe("City or destination to search hotels"),
+    checkinDate: z
+      .string()
+      .nullable()
+      .describe(
+        "Check-in date in YYYY-MM-DD format (optional, will be extracted from query)"
+      ),
+    checkoutDate: z
+      .string()
+      .nullable()
+      .describe(
+        "Check-out date in YYYY-MM-DD format (optional, will be extracted from query)"
+      ),
+    adults: z.number().default(2).describe("Number of adult guests"),
+    rooms: z.number().default(1).describe("Number of rooms needed"),
+    children: z.number().default(0).describe("Number of children"),
+    currency: z.string().default("EUR").describe("Currency for pricing"),
+    limit: z.number().default(10).describe("Maximum results to return"),
+  }),
+  execute: async ({
+    query,
+    location,
+    checkinDate = null,
+    checkoutDate = null,
+    adults = 2,
+    rooms = 1,
+    children = 0,
+    currency = "EUR",
+    limit = 10,
+  }: {
+    query: string;
+    location: string;
+    checkinDate?: string | null;
+    checkoutDate?: string | null;
+    adults?: number;
+    rooms?: number;
+    children?: number;
+    currency?: string;
+    limit?: number;
+  }) => {
+    console.log(`[RAPIDAPI_HOTEL_SEARCH] Called with:`, {
+      query,
+      location,
+      checkinDate,
+      checkoutDate,
+      adults,
+      rooms,
+      children,
+      currency,
+      limit,
+    });
+
+    try {
+      // Extract dates from query if not provided
+      let finalCheckinDate = checkinDate;
+      let finalCheckoutDate = checkoutDate;
+      let extractedGuests = adults;
+      let extractedRooms = rooms;
+
+      if (!checkinDate || !checkoutDate) {
+        console.log(
+          `[RAPIDAPI_HOTEL_SEARCH] Extracting dates from query: "${query}"`
+        );
+
+        const dateExtraction = await extractDatesFromQuery(query);
+
+        if (dateExtraction.success && dateExtraction.dates) {
+          finalCheckinDate = dateExtraction.dates.checkinDate;
+          finalCheckoutDate = dateExtraction.dates.checkoutDate;
+
+          // Use extracted guest/room info if available
+          if (dateExtraction.dates.guests) {
+            extractedGuests = dateExtraction.dates.guests;
+          }
+          if (dateExtraction.dates.rooms) {
+            extractedRooms = dateExtraction.dates.rooms;
+          }
+
+          console.log(`[RAPIDAPI_HOTEL_SEARCH] Extracted dates:`, {
+            checkin: finalCheckinDate,
+            checkout: finalCheckoutDate,
+            guests: extractedGuests,
+            rooms: extractedRooms,
+            confidence: dateExtraction.dates.confidence,
+            reasoning: dateExtraction.dates.reasoning,
+          });
+        } else {
+          console.warn(
+            `[RAPIDAPI_HOTEL_SEARCH] Date extraction failed, using fallback`
+          );
+        }
+      }
+
+      // Call RapidAPI service
+      const searchParams = {
+        location,
+        checkinDate: finalCheckinDate || undefined,
+        checkoutDate: finalCheckoutDate || undefined,
+        adults: extractedGuests,
+        rooms: extractedRooms,
+        children,
+        currency,
+      };
+
+      const apiResponse =
+        await rapidApiBookingService.searchHotels(searchParams);
+
+      console.log(`[RAPIDAPI_HOTEL_SEARCH] API Response:`, {
+        success: apiResponse.success,
+        hotelCount: apiResponse.data.length,
+        error: apiResponse.error,
+      });
+
+      if (!apiResponse.success) {
+        return {
+          success: false,
+          error: apiResponse.error || "Hotel search failed",
+          data: [],
+          message: `Hotel search failed for ${location}. Please try a different location or check your dates.`,
+          searchContext: { query, location },
+        };
+      }
+
+      // Limit results before availability checking to reduce API calls
+      const limitedResults = apiResponse.data.slice(0, limit);
+
+      // Check availability for each hotel if dates are provided
+      let availableHotels = limitedResults;
+
+      if (finalCheckinDate && finalCheckoutDate) {
+        console.log(
+          `[RAPIDAPI_HOTEL_SEARCH] Checking availability for ${limitedResults.length} hotels...`
+        );
+
+        const availabilityChecks = await Promise.allSettled(
+          limitedResults.map(async hotel => {
+            const availability =
+              await rapidApiBookingService.checkHotelAvailability(
+                hotel.id,
+                finalCheckinDate,
+                finalCheckoutDate,
+                currency
+              );
+
+            return {
+              hotel,
+              availability,
+            };
+          })
+        );
+
+        // Get available hotels first
+        const availableHotelResults = availabilityChecks.filter(
+          (
+            result
+          ): result is PromiseFulfilledResult<{
+            hotel: (typeof limitedResults)[0];
+            availability: HotelAvailability;
+          }> =>
+            result.status === "fulfilled" && result.value.availability.available
+        );
+
+        console.log(
+          `[RAPIDAPI_HOTEL_SEARCH] Found ${availableHotelResults.length} available hotels, fetching details...`
+        );
+
+        // Fetch detailed information for available hotels
+        const detailsChecks = await Promise.allSettled(
+          availableHotelResults.map(async result => {
+            const { hotel, availability } = result.value;
+
+            try {
+              const details = await rapidApiBookingService.getHotelDetails(
+                hotel.id,
+                finalCheckinDate,
+                finalCheckoutDate,
+                extractedGuests,
+                extractedRooms,
+                children,
+                currency
+              );
+
+              return {
+                hotel,
+                availability,
+                details,
+              };
+            } catch (error) {
+              console.warn(
+                `[RAPIDAPI_HOTEL_SEARCH] Failed to get details for hotel ${hotel.id}:`,
+                error
+              );
+              return {
+                hotel,
+                availability,
+                details: null,
+              };
+            }
+          })
+        );
+
+        // Process hotels with details and update pricing
+        availableHotels = detailsChecks
+          .filter(
+            (
+              result
+            ): result is PromiseFulfilledResult<{
+              hotel: (typeof limitedResults)[0];
+              availability: HotelAvailability;
+              details: HotelDetails | null;
+            }> => result.status === "fulfilled"
+          )
+          .map(result => {
+            const { hotel, availability, details } = result.value;
+
+            // Update hotel with real-time pricing from availability data
+            if (availability.avDates && availability.avDates.length > 0) {
+              const availableDatesWithPrice = availability.avDates.filter(
+                (date: AvailabilityDate) => date.price && date.available
+              );
+
+              if (availableDatesWithPrice.length > 0) {
+                const avgPrice =
+                  availableDatesWithPrice.reduce(
+                    (sum: number, date: AvailabilityDate) =>
+                      sum + (date.price?.amount || 0),
+                    0
+                  ) / availableDatesWithPrice.length;
+
+                if (avgPrice > 0) {
+                  hotel.price = {
+                    amount: avgPrice,
+                    currency: currency,
+                    per_night: true,
+                  };
+                }
+              }
+            }
+
+            // Enhance hotel with detailed information if available
+            if (details) {
+              // Update with direct Booking.com URL
+              if (details.url) {
+                hotel.booking_url = details.url;
+              }
+
+              // Update with high-quality photos
+              if (details.photos && details.photos.length > 0) {
+                hotel.images = details.photos;
+              }
+
+              // Update with detailed amenities
+              if (details.facilities && details.facilities.length > 0) {
+                hotel.amenities = details.facilities
+                  .map(f => f.name)
+                  .slice(0, 10);
+              }
+
+              // Add room highlights as additional amenities
+              if (
+                details.room_highlights &&
+                details.room_highlights.length > 0
+              ) {
+                const currentAmenities = hotel.amenities || [];
+                const combinedAmenities = [
+                  ...currentAmenities,
+                  ...details.room_highlights,
+                ];
+                hotel.amenities = [...new Set(combinedAmenities)].slice(0, 15);
+              }
+
+              // Update pricing with detailed breakdown if available and better than current
+              if (
+                details.price_breakdown?.gross_amount_per_night &&
+                details.price_breakdown.gross_amount_per_night.value > 0
+              ) {
+                hotel.price = {
+                  amount: details.price_breakdown.gross_amount_per_night.value,
+                  currency:
+                    details.price_breakdown.gross_amount_per_night.currency,
+                  per_night: true,
+                };
+              }
+
+              // Add detailed information to rapid_api_data
+              hotel.rapid_api_data = {
+                ...hotel.rapid_api_data,
+                hotel_details: details,
+                sustainability: details.sustainability,
+                breakfast_included: details.breakfast_included,
+                available_rooms: details.available_rooms,
+              };
+            }
+
+            return hotel;
+          });
+
+        console.log(`[RAPIDAPI_HOTEL_SEARCH] Availability check complete:`, {
+          totalHotels: limitedResults.length,
+          availableHotels: availableHotels.length,
+          filteredOut: limitedResults.length - availableHotels.length,
+        });
+      } else {
+        console.log(
+          `[RAPIDAPI_HOTEL_SEARCH] No dates provided, skipping availability check`
+        );
+      }
+
+      // Transform to format expected by agent
+      const transformedResults = availableHotels.map(hotel => ({
+        id: hotel.id,
+        name: hotel.name,
+        description: hotel.description || `Hotel in ${hotel.location}`,
+        location: hotel.location,
+        address: hotel.address,
+        city: hotel.city,
+        country: hotel.country,
+        coordinates: hotel.coordinates
+          ? {
+              lat: hotel.coordinates.latitude,
+              lng: hotel.coordinates.longitude,
+            }
+          : null,
+        price_range: hotel.price ? Math.ceil(hotel.price.amount / 50) : 3, // Convert to 1-5 scale
+        star_rating: hotel.rating ? Math.round(hotel.rating / 2) : null, // Convert 10-point to 5-star
+        amenities: hotel.amenities || [],
+        room_types: [], // Not available from RapidAPI
+        phone: null, // Not available from basic search
+        email: null, // Not available from basic search
+        website: null, // Not available from basic search
+        booking_url: hotel.booking_url,
+        primary_image_url: hotel.images[0] || null,
+        gallery_urls: hotel.images.slice(1),
+        is_featured: false,
+        view_count: 0,
+        booking_count: 0,
+        // Additional RapidAPI specific data
+        rapid_api_data: {
+          real_time_price: hotel.price,
+          availability: hotel.availability,
+          review_count: hotel.review_count,
+        },
+      }));
+
+      const finalMessage =
+        finalCheckinDate && finalCheckoutDate
+          ? `Found ${transformedResults.length} available hotels in ${location} for ${finalCheckinDate} to ${finalCheckoutDate}`
+          : `Found ${transformedResults.length} hotels in ${location} (availability not verified - please provide specific dates)`;
+
+      return {
+        success: true,
+        data: transformedResults,
+        message: finalMessage,
+        searchContext: {
+          query,
+          location,
+          checkinDate: finalCheckinDate,
+          checkoutDate: finalCheckoutDate,
+          adults: extractedGuests,
+          rooms: extractedRooms,
+          children,
+          currency,
+          source: "rapidapi_booking",
+          availability_verified: !!(finalCheckinDate && finalCheckoutDate),
+        },
+        metadata: {
+          total_found: apiResponse.total_results,
+          total_available: transformedResults.length,
+          date_extraction_used: !checkinDate || !checkoutDate,
+          filtered_by_availability:
+            finalCheckinDate && finalCheckoutDate
+              ? limitedResults.length - availableHotels.length
+              : 0,
+        },
+      };
+    } catch (error) {
+      console.error(`[RAPIDAPI_HOTEL_SEARCH] Search failed:`, error);
+
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "RapidAPI hotel search failed",
+        data: [],
+        message: `Hotel search failed for ${location}. Please try a different location or check your dates.`,
+        searchContext: { query, location },
       };
     }
   },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server-auth";
+import { supabase } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 
 interface RegisterRequest {
@@ -11,7 +11,6 @@ interface RegisterRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
     const body: RegisterRequest = await request.json();
     const { email, password, displayName, acceptTerms } = body;
 
