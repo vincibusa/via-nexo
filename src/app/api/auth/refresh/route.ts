@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server-auth";
+import { supabase } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 
 export async function POST(_request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-
     // Get the current session to check if refresh is needed
     const {
       data: { session },

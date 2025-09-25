@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server-auth";
 import { cookies } from "next/headers";
 
 export async function POST(_request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-
-    // Attempt to sign out from Supabase
-    try {
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.warn("[AUTH_API] Supabase signout error:", error);
-        // Continue with cookie clearing even if Supabase signout fails
-      }
-    } catch (signoutError) {
-      console.warn("[AUTH_API] Signout failed:", signoutError);
-      // Continue with cookie clearing
-    }
-
     // Clear authentication cookies
     const cookieStore = await cookies();
 

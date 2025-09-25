@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server-auth";
+import { requireAuth, getServerUserProfile } from "@/lib/server-auth-utils";
+import { supabase } from "@/lib/supabase-server";
 
 interface UpdateProfileRequest {
   displayName?: string;
@@ -19,15 +20,9 @@ interface UpdateProfileRequest {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const user = await requireAuth();
 
-    // Get current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }

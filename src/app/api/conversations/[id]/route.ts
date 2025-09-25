@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase-auth";
+import { requireAuth } from "@/lib/server-auth-utils";
+import { supabase } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -7,15 +8,7 @@ export async function GET(
 ) {
   const { id } = await params;
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const { data: conversation, error } = await supabase
       .from("conversations")
@@ -47,8 +40,15 @@ export async function GET(
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      {
+        status:
+          error instanceof Error && error.message.startsWith("Unauthorized")
+            ? 401
+            : 500,
+      }
     );
   }
 }
@@ -59,15 +59,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const body = await request.json();
     const { title } = body;
@@ -98,8 +90,15 @@ export async function PATCH(
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      {
+        status:
+          error instanceof Error && error.message.startsWith("Unauthorized")
+            ? 401
+            : 500,
+      }
     );
   }
 }
@@ -110,15 +109,7 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    const supabase = await createClient();
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const { error } = await supabase
       .from("conversations")
@@ -138,8 +129,15 @@ export async function DELETE(
   } catch (error) {
     console.error("API Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
+      {
+        status:
+          error instanceof Error && error.message.startsWith("Unauthorized")
+            ? 401
+            : 500,
+      }
     );
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase-auth";
+import { requireAuth } from "@/lib/server-auth-utils";
+import { supabase } from "@/lib/supabase-server";
 
 interface DatabaseChatMessage {
   id: unknown;
@@ -15,21 +16,7 @@ export async function GET(
 ) {
   const { id: conversationId } = await params;
   try {
-    const supabase = await createClient();
-    // conversationId già destrutturato
-
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized", success: false },
-        { status: 401 }
-      );
-    }
+    const user = await requireAuth();
 
     // Validate conversation ID format (UUID)
     const uuidRegex =
@@ -118,16 +105,9 @@ export async function PUT(
 ) {
   const { id: conversationId } = await params;
   try {
-    const supabase = await createClient();
-    // conversationId già destrutturato
+    const user = await requireAuth();
 
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: "Unauthorized", success: false },
         { status: 401 }
@@ -216,16 +196,9 @@ export async function DELETE(
 ) {
   const { id: conversationId } = await params;
   try {
-    const supabase = await createClient();
-    // conversationId già destrutturato
+    const user = await requireAuth();
 
-    // Get the current user
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+    if (!user) {
       return NextResponse.json(
         { error: "Unauthorized", success: false },
         { status: 401 }

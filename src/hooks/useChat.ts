@@ -140,14 +140,13 @@ export function useChat(): UseChatReturn {
         timestamp: new Date().toISOString(),
       };
 
-      // Create new session if none exists
+      // ALWAYS add user message to UI immediately for instant visibility
+      setMessages(prev => [...prev, userMessage]);
+
+      // Create new session if none exists (without passing the message to avoid duplication)
       let sessionId = currentSessionId;
       if (!sessionId) {
-        sessionId = await createNewSession(userMessage);
-        // Don't add the message again since createNewSession already adds it
-      } else {
-        // Only add the message if we're using an existing session
-        setMessages(prev => [...prev, userMessage]);
+        sessionId = await createNewSession();
       }
       setStatus("loading");
       setError(null);
